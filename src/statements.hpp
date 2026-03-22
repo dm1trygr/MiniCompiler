@@ -3,23 +3,22 @@
 #include <string>
 #include <vector>
 
-#include "context.hpp"
 #include "expressions.hpp"
+
+class Visitor;
 
 class Statement {
  public:
   virtual ~Statement() = default;
-  virtual void execute(Context& ctx) = 0;
-  virtual void printTree(int depth) = 0;
+  virtual void accept(Visitor& visitor) = 0;
 };
 
 class DeclareStatement : public Statement {
  public:
   DeclareStatement(const std::string& n) : name(n) {}
-  void execute(Context& ctx) override;
-  void printTree(int depth) override;
+  void accept(Visitor& visitor) override;
 
- private:
+ public:
   std::string name;
 };
 
@@ -27,10 +26,9 @@ class AssignStatement : public Statement {
  public:
   AssignStatement(const std::string& n, std::unique_ptr<Expression> e)
       : name(n), expr(std::move(e)) {}
-  void execute(Context& ctx) override;
-  void printTree(int depth) override;
+  void accept(Visitor& visitor) override;
 
- private:
+ public:
   std::string name;
   std::unique_ptr<Expression> expr;
 };
@@ -38,17 +36,15 @@ class AssignStatement : public Statement {
 class PrintStatement : public Statement {
  public:
   PrintStatement(std::unique_ptr<Expression> e) : expr(std::move(e)) {}
-  void execute(Context& ctx) override;
-  void printTree(int depth) override;
+  void accept(Visitor& visitor) override;
 
- private:
+ public:
   std::unique_ptr<Expression> expr;
 };
 
 class BlockStatement : public Statement {
  public:
-  void execute(Context& ctx) override;
-  void printTree(int depth) override;
+  void accept(Visitor& visitor) override;
 
  public:
   std::vector<std::unique_ptr<Statement>> statements;
@@ -63,10 +59,9 @@ class IfStatement : public Statement {
         thenBranch(std::move(thenB)),
         elseBranch(std::move(elseB)) {}
 
-  void execute(Context& ctx) override;
-  void printTree(int depth) override;
+  void accept(Visitor& visitor) override;
 
- private:
+ public:
   std::unique_ptr<Expression> condition;
   std::unique_ptr<Statement> thenBranch;
   std::unique_ptr<Statement> elseBranch;

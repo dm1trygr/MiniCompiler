@@ -2,6 +2,7 @@
 #include <iostream>
 
 #include "src/parser.hpp"
+#include "src/visitors.hpp"
 
 int main() {
   // Here is code demonstration
@@ -26,7 +27,6 @@ int main() {
         }
     )";
 
-  // Here is processing of code
   try {
     std::cout << "1) Lexer\n";
     Lexer lexer(code);
@@ -37,13 +37,15 @@ int main() {
     Parser parser(tokens);
     auto ast = parser.parseProgram();
 
-    std::cout << "Got tree:\n";
-    ast->printTree(0);
-    std::cout << "\n";
+    std::cout << "3) Saving Tree to file (Using Visitor)\n";
+    PrintVisitor printer("ast_tree.txt");
+    ast->accept(printer);
+    std::cout << "Tree saved to ast_tree.txt\n\n";
 
     std::cout << "3) Interpretation\n";
     Context ctx;
-    ast->execute(ctx);
+    Interpreter interpreter;
+    ast->accept(interpreter);
 
   } catch (const std::exception& e) {
     std::cerr << "Syntax error: " << e.what() << '\n';

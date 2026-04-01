@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 23)
 
 set(SOURCE_FILES
     main.cpp
-    src/context.hpp
     src/expressions.hpp
     src/expressions.cpp
     src/lexer.hpp
@@ -16,6 +15,8 @@ set(SOURCE_FILES
     src/statements.cpp
     src/visitors.hpp
     src/visitors.cpp
+    src/symtable.hpp
+    src/symtable.cpp
 )
 
 add_executable(compiler ${SOURCE_FILES})

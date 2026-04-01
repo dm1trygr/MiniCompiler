@@ -1,16 +1,21 @@
 #include "statements.hpp"
 
-#include <iostream>
-#include <stdexcept>
-
 #include "visitors.hpp"
 
-void DeclareStatement::accept(Visitor& v) { v.visit(this); }
+void DeclareStatement::Accept(Visitor& v) { v.Visit(this); }
 
-void AssignStatement::accept(Visitor& v) { v.visit(this); }
+void AssignStatement::Accept(Visitor& v) { v.Visit(this); }
 
-void PrintStatement::accept(Visitor& v) { v.visit(this); }
+void PrintStatement::Accept(Visitor& v) { v.Visit(this); }
 
-void BlockStatement::accept(Visitor& v) { v.visit(this); }
+void BlockStatement::Accept(Visitor& v) { v.Visit(this); }
 
-void IfStatement::accept(Visitor& v) { v.visit(this); }
+void IfStatement::Accept(Visitor& v) { v.Visit(this); }
+
+void WhileStatement::Accept(Visitor& v) { v.Visit(this); }
+
+void ReturnStatement::Accept(Visitor& v) { v.Visit(this); }
+
+void MethodDeclarationStatement::Accept(Visitor& v) { v.Visit(this); }
+
+void ClassDeclarationStatement::Accept(Visitor& v) { v.Visit(this); }

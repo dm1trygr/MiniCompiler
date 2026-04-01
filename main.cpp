@@ -13,7 +13,7 @@ int main() {
         declare y: int;
         y = 5;
 
-        if (x == 0) {
+        if (x + 5 == 0) {
             print(100);
             x = 1;
         } else {
@@ -30,25 +30,24 @@ int main() {
   try {
     std::cout << "1) Lexer\n";
     Lexer lexer(code);
-    auto tokens = lexer.tokenize();
+    auto tokens = lexer.Tokenize();
     std::cout << "Tokens count: " << tokens.size() << "\n\n";
 
     std::cout << "2) Building Tree\n";
     Parser parser(tokens);
-    auto ast = parser.parseProgram();
+    auto ast = parser.ParseProgram();
 
     std::cout << "3) Saving Tree to file (Using Visitor)\n";
     PrintVisitor printer("ast_tree.txt");
-    ast->accept(printer);
+    ast->Accept(printer);
     std::cout << "Tree saved to ast_tree.txt\n\n";
 
-    std::cout << "3) Interpretation\n";
-    Context ctx;
+    std::cout << "4) Interpretation\n";
     Interpreter interpreter;
-    ast->accept(interpreter);
+    ast->Accept(interpreter);
 
   } catch (const std::exception& e) {
-    std::cerr << "Syntax error: " << e.what() << '\n';
+    std::cerr << "Error: " << e.what() << '\n';
   }
 
   return 0;

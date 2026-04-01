@@ -1,11 +1,9 @@
 #include "expressions.hpp"
 
-#include <iostream>
-
 #include "visitors.hpp"
 
-void NumberExpression::accept(Visitor& v) { v.visit(this); }
+void NumberExpression::Accept(Visitor& v) { v.Visit(this); }
 
-void VarExpression::accept(Visitor& v) { v.visit(this); }
+void VarExpression::Accept(Visitor& v) { v.Visit(this); }
 
-void BinaryExpression::accept(Visitor& v) { v.visit(this); }
+void BinaryExpression::Accept(Visitor& v) { v.Visit(this); }

@@ -6,19 +6,29 @@
 enum class TokenType {
   DECLARE,
   INT_TYPE,
+  VOID_TYPE,
   IF,
   ELSE,
+  WHILE,
   PRINT,
-  ID,  // variable identifier/name
+  ID,
   NUMBER,
-  ASSIGN,     // =
-  EQ,         // ==
-  COLON,      // :
-  SEMICOLON,  // ;
-  LPAREN,     // (
-  RPAREN,     // )
-  LBRACE,     // {
-  RBRACE,     // }
+  CLASS,
+  METHOD,
+  RETURN,
+  COMMA,
+  ASSIGN,
+  EQ,
+  PLUS,
+  MINUS,
+  MULT,
+  DIVIDE,
+  COLON,
+  SEMICOLON,
+  LPAREN,
+  RPAREN,
+  LBRACE,
+  RBRACE,
   END_OF_FILE
 };
 
@@ -28,11 +38,12 @@ struct Token {
 };
 
 class Lexer {
+ public:
+  explicit Lexer(const std::string& source) : src(source) {}
+
+  std::vector<Token> Tokenize();
+
+ private:
   std::string src;
   size_t pos = 0;
-
- public:
-  Lexer(const std::string& source) : src(source) {}
-
-  std::vector<Token> tokenize();
 };

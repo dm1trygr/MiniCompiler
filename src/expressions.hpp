@@ -1,23 +1,20 @@
 #pragma once
 
 #include <memory>
-
-#include "context.hpp"
+#include <string>
 
 class Visitor;
 
 class Expression {
  public:
   virtual ~Expression() = default;
-  virtual void accept(Visitor& visitor) = 0;
+  virtual void Accept(Visitor& visitor) = 0;
 };
-
-void printIndent(int depth);
 
 class NumberExpression : public Expression {
  public:
-  NumberExpression(int val) : value(val) {}
-  void accept(Visitor& visitor) override;
+  explicit NumberExpression(int val) : value(val) {}
+  void Accept(Visitor& visitor) override;
 
  public:
   int value;
@@ -25,8 +22,8 @@ class NumberExpression : public Expression {
 
 class VarExpression : public Expression {
  public:
-  VarExpression(const std::string& n) : name(n) {}
-  void accept(Visitor& visitor) override;
+  explicit VarExpression(const std::string& n) : name(n) {}
+  void Accept(Visitor& visitor) override;
 
  public:
   std::string name;
@@ -38,7 +35,7 @@ class BinaryExpression : public Expression {
                    const std::string& o)
       : left(std::move(l)), right(std::move(r)), op(o) {}
 
-  void accept(Visitor& visitor) override;
+  void Accept(Visitor& visitor) override;
 
  public:
   std::unique_ptr<Expression> left, right;

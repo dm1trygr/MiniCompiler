@@ -15,9 +15,13 @@ class Visitor {
   virtual void Visit(NumberExpression* node) = 0;
   virtual void Visit(VarExpression* node) = 0;
   virtual void Visit(BinaryExpression* node) = 0;
+  virtual void Visit(FieldAccessExpression* node) = 0;
+  virtual void Visit(MethodCallExpression* node) = 0;
 
   virtual void Visit(DeclareStatement* node) = 0;
   virtual void Visit(AssignStatement* node) = 0;
+  virtual void Visit(FieldAssignStatement* node) = 0;
+  virtual void Visit(ExpressionStatement* node) = 0;
   virtual void Visit(PrintStatement* node) = 0;
   virtual void Visit(BlockStatement* node) = 0;
   virtual void Visit(IfStatement* node) = 0;
@@ -36,9 +40,13 @@ class PrintVisitor : public Visitor {
   void Visit(NumberExpression* node) override;
   void Visit(VarExpression* node) override;
   void Visit(BinaryExpression* node) override;
+  void Visit(FieldAccessExpression* node) override;
+  void Visit(MethodCallExpression* node) override;
 
   void Visit(DeclareStatement* node) override;
   void Visit(AssignStatement* node) override;
+  void Visit(FieldAssignStatement* node) override;
+  void Visit(ExpressionStatement* node) override;
   void Visit(PrintStatement* node) override;
   void Visit(BlockStatement* node) override;
   void Visit(IfStatement* node) override;
@@ -60,9 +68,13 @@ class Interpreter : public Visitor {
   void Visit(NumberExpression* node) override;
   void Visit(VarExpression* node) override;
   void Visit(BinaryExpression* node) override;
+  void Visit(FieldAccessExpression* node) override;
+  void Visit(MethodCallExpression* node) override;
 
   void Visit(DeclareStatement* node) override;
   void Visit(AssignStatement* node) override;
+  void Visit(FieldAssignStatement* node) override;
+  void Visit(ExpressionStatement* node) override;
   void Visit(PrintStatement* node) override;
   void Visit(BlockStatement* node) override;
   void Visit(IfStatement* node) override;
@@ -87,9 +99,13 @@ class SemanticAnalyzer : public Visitor {
   void Visit(NumberExpression* node) override;
   void Visit(VarExpression* node) override;
   void Visit(BinaryExpression* node) override;
+  void Visit(FieldAccessExpression* node) override;
+  void Visit(MethodCallExpression* node) override;
 
   void Visit(DeclareStatement* node) override;
   void Visit(AssignStatement* node) override;
+  void Visit(FieldAssignStatement* node) override;
+  void Visit(ExpressionStatement* node) override;
   void Visit(PrintStatement* node) override;
   void Visit(BlockStatement* node) override;
   void Visit(IfStatement* node) override;
@@ -105,4 +121,6 @@ class SemanticAnalyzer : public Visitor {
   Scope* current_scope;
   bool in_method = false;
   Type current_return_type;
+
+  const ClassInfo* ResolveClassOfVar(const std::string& var_name);
 };

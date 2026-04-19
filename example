@@ -1,0 +1,16 @@
+class Point {
+  declare x: int;
+  declare y: int;
+
+  method Sum(a: int, b: int): int {
+    return a + b;
+  }
+}
+
+declare p: Point;
+p.x = 10;
+p.y = 20;
+
+print(p.x);
+print(p.y);
+print(p.Sum(p.x, p.y));

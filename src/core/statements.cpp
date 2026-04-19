@@ -6,6 +6,10 @@ void DeclareStatement::Accept(Visitor& v) { v.Visit(this); }
 
 void AssignStatement::Accept(Visitor& v) { v.Visit(this); }
 
+void FieldAssignStatement::Accept(Visitor& v) { v.Visit(this); }
+
+void ExpressionStatement::Accept(Visitor& v) { v.Visit(this); }
+
 void PrintStatement::Accept(Visitor& v) { v.Visit(this); }
 
 void BlockStatement::Accept(Visitor& v) { v.Visit(this); }

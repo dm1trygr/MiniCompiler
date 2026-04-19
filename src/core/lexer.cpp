@@ -68,6 +68,8 @@ Token Lexer::ReadPunctuationOrOperator() {
       return {TokenType::MULT, "*"};
     case '/':
       return {TokenType::DIVIDE, "/"};
+    case '.':
+      return {TokenType::DOT, "."};
     case ',':
       return {TokenType::COMMA, ","};
     case ':':

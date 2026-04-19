@@ -25,6 +25,7 @@ enum class TokenType {
   DIVIDE,
   COLON,
   SEMICOLON,
+  DOT,
   LPAREN,
   RPAREN,
   LBRACE,

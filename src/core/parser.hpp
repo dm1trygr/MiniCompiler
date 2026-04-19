@@ -33,6 +33,8 @@ class Parser {
   std::unique_ptr<Expression> ParseMultiplicative();
   std::unique_ptr<Expression> ParsePrimary();
 
+  std::vector<std::unique_ptr<Expression>> ParseArgumentList();
+
   Token Peek();
   Token Consume();
   void Expect(TokenType type, const std::string& err);

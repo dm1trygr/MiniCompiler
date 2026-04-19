@@ -56,6 +56,32 @@ std::unique_ptr<Statement> Parser::ParseDeclareStatement() {
 
 std::unique_ptr<Statement> Parser::ParseAssignStatement() {
   std::string name = Consume().value;
+
+  // Check for obj.field or obj.method()
+  if (Peek().type == TokenType::DOT) {
+    Consume();
+    std::string member = Consume().value;
+
+    if (Peek().type == TokenType::LPAREN) {
+      // obj.method(args);
+      Consume();
+      auto args = ParseArgumentList();
+      Expect(TokenType::RPAREN, "Expected ')'");
+      Expect(TokenType::SEMICOLON, "Expected ';'");
+      auto call = std::make_unique<MethodCallExpression>(
+          name, member, std::move(args));
+      return std::make_unique<ExpressionStatement>(std::move(call));
+    }
+
+    // obj.field = expr;
+    Expect(TokenType::ASSIGN, "Expected '='");
+    auto expr = ParseExpression();
+    Expect(TokenType::SEMICOLON, "Expected ';'");
+    return std::make_unique<FieldAssignStatement>(name, member,
+                                                  std::move(expr));
+  }
+
+  // Regular assignment: var = expr;
   Expect(TokenType::ASSIGN, "Expected '='");
   auto expr = ParseExpression();
   Expect(TokenType::SEMICOLON, "Expected ';'");
@@ -233,16 +259,51 @@ std::unique_ptr<Expression> Parser::ParsePrimary() {
   if (Peek().type == TokenType::NUMBER) {
     return std::make_unique<NumberExpression>(std::stoi(Consume().value));
   }
+
   if (Peek().type == TokenType::ID) {
-    return std::make_unique<VarExpression>(Consume().value);
+    std::string name = Consume().value;
+
+    // Check for obj.field or obj.method()
+    if (Peek().type == TokenType::DOT) {
+      Consume();
+      std::string member = Consume().value;
+
+      if (Peek().type == TokenType::LPAREN) {
+        // obj.method(args)
+        Consume();
+        auto args = ParseArgumentList();
+        Expect(TokenType::RPAREN, "Expected ')'");
+        return std::make_unique<MethodCallExpression>(name, member,
+                                                      std::move(args));
+      }
+
+      // obj.field
+      return std::make_unique<FieldAccessExpression>(name, member);
+    }
+
+    return std::make_unique<VarExpression>(name);
   }
+
   if (Peek().type == TokenType::LPAREN) {
     Consume();
     auto expr = ParseExpression();
     Expect(TokenType::RPAREN, "Expected ')'");
     return expr;
   }
+
   throw std::runtime_error("Expected expression");
+}
+
+std::vector<std::unique_ptr<Expression>> Parser::ParseArgumentList() {
+  std::vector<std::unique_ptr<Expression>> args;
+  if (Peek().type == TokenType::RPAREN) return args;
+
+  args.push_back(ParseExpression());
+  while (Peek().type == TokenType::COMMA) {
+    Consume();
+    args.push_back(ParseExpression());
+  }
+  return args;
 }
 
 Token Parser::Peek() { return tokens[pos]; }

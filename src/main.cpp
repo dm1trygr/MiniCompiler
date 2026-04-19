@@ -1,71 +1,50 @@
-#include <cctype>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 
 #include "core/parser.hpp"
 #include "core/visitors.hpp"
 
-int main() {
-  // Here is code demonstration
-  std::string code = R"(
-        class Example {
-            declare value: int;
+std::string ReadFile(const std::string& path) {
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    throw std::runtime_error("Cannot open file: " + path);
+  }
+  std::stringstream ss;
+  ss << file.rdbuf();
+  return ss.str();
+}
 
-            method add(a: int): int {
-                return a + value;
-            }
-
-            method multiply(a: int): int {
-                return a * value;
-            }
-        }
-
-        declare x: int;
-        x = 0;
-
-        declare y: int;
-        y = 5;
-
-        if (x + 5 == 0) {
-            print(100);
-            x = 1;
-        } else {
-            print(404);
-        }
-
-        if (x == 0) {
-            print(999);
-        } else {
-            print(y);
-        }
-    )";
+int main(int argc, char** argv) {
+  if (argc != 2) {
+    std::cerr << "Usage: ./compiler <source_file>\n";
+    return 1;
+  }
 
   try {
-    std::cout << "1) Lexer\n";
+    std::string code = ReadFile(argv[1]);
+
     Lexer lexer(code);
     auto tokens = lexer.Tokenize();
-    std::cout << "Tokens count: " << tokens.size() << "\n\n";
+    std::cout << "Tokens: " << tokens.size() << "\n";
 
-    std::cout << "2) Building Tree\n";
     Parser parser(tokens);
     auto ast = parser.ParseProgram();
-    std::cout << "Ok!\n\n";
+    std::cout << "AST built\n";
 
-    std::cout << "3) Saving Tree to file (Using Visitor)\n";
-    PrintVisitor printer("ast_tree.txt");
-    ast->Accept(printer);
-    std::cout << "Tree saved to ast_tree.txt\n\n";
-
-    std::cout << "4) Interpretation\n";
-    Interpreter interpreter;
-    ast->Accept(interpreter);
-    std::cout << "Finished!\n\n";
-
-    std::cout << "5) Semantic Analysis\n";
     SemanticAnalyzer analyzer;
     ast->Accept(analyzer);
-    std::cout << "Ok!\n";
+    std::cout << "Semantic analysis passed\n";
+
+    // TODO: IR Generator will be implemented later
+    // IrGenerator gen(argv[1]);
+    // gen.GenerateMain(ast.get());
+    // gen.SaveToFile("output.ll");
+    // std::cout << "IR saved to output.ll\n";
+
   } catch (const std::exception& e) {
-    std::cerr << "Error: " << e.what() << '\n';
+    std::cerr << "Error: " << e.what() << "\n";
+    return 1;
   }
 
   return 0;

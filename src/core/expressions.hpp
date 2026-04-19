@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "operators.hpp"
 
@@ -38,4 +39,28 @@ class BinaryExpression : public Expression {
 
   std::unique_ptr<Expression> left, right;
   BinaryOperator op;
+};
+
+class FieldAccessExpression : public Expression {
+ public:
+  FieldAccessExpression(const std::string& obj, const std::string& field)
+      : object_name(obj), field_name(field) {}
+  void Accept(Visitor& visitor) override;
+
+ public:
+  std::string object_name;
+  std::string field_name;
+};
+
+class MethodCallExpression : public Expression {
+ public:
+  MethodCallExpression(const std::string& obj, const std::string& method,
+                       std::vector<std::unique_ptr<Expression>> args)
+      : object_name(obj), method_name(method), arguments(std::move(args)) {}
+  void Accept(Visitor& visitor) override;
+
+ public:
+  std::string object_name;
+  std::string method_name;
+  std::vector<std::unique_ptr<Expression>> arguments;
 };

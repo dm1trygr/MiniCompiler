@@ -34,6 +34,29 @@ class AssignStatement : public Statement {
   std::unique_ptr<Expression> expr;
 };
 
+class FieldAssignStatement : public Statement {
+ public:
+  FieldAssignStatement(const std::string& obj, const std::string& field,
+                       std::unique_ptr<Expression> e)
+      : object_name(obj), field_name(field), expr(std::move(e)) {}
+  void Accept(Visitor& visitor) override;
+
+ public:
+  std::string object_name;
+  std::string field_name;
+  std::unique_ptr<Expression> expr;
+};
+
+class ExpressionStatement : public Statement {
+ public:
+  explicit ExpressionStatement(std::unique_ptr<Expression> e)
+      : expr(std::move(e)) {}
+  void Accept(Visitor& visitor) override;
+
+ public:
+  std::unique_ptr<Expression> expr;
+};
+
 class PrintStatement : public Statement {
  public:
   explicit PrintStatement(std::unique_ptr<Expression> e) : expr(std::move(e)) {}

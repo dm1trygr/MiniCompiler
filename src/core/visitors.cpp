@@ -31,6 +31,21 @@ void PrintVisitor::Visit(BinaryExpression* node) {
   depth--;
 }
 
+void PrintVisitor::Visit(FieldAccessExpression* node) {
+  PrintIndent();
+  out << "FieldAccess: " << node->object_name << "." << node->field_name << "\n";
+}
+
+void PrintVisitor::Visit(MethodCallExpression* node) {
+  PrintIndent();
+  out << "MethodCall: " << node->object_name << "." << node->method_name << "()\n";
+  depth++;
+  for (auto& arg : node->arguments) {
+    arg->Accept(*this);
+  }
+  depth--;
+}
+
 void PrintVisitor::Visit(DeclareStatement* node) {
   PrintIndent();
   out << "Declare: " << node->name << " : " << node->type.ToString() << "\n";
@@ -39,6 +54,22 @@ void PrintVisitor::Visit(DeclareStatement* node) {
 void PrintVisitor::Visit(AssignStatement* node) {
   PrintIndent();
   out << "Assign: " << node->name << " =\n";
+  depth++;
+  node->expr->Accept(*this);
+  depth--;
+}
+
+void PrintVisitor::Visit(FieldAssignStatement* node) {
+  PrintIndent();
+  out << "FieldAssign: " << node->object_name << "." << node->field_name << " =\n";
+  depth++;
+  node->expr->Accept(*this);
+  depth--;
+}
+
+void PrintVisitor::Visit(ExpressionStatement* node) {
+  PrintIndent();
+  out << "ExpressionStatement:\n";
   depth++;
   node->expr->Accept(*this);
   depth--;
@@ -204,6 +235,10 @@ void Interpreter::Visit(BinaryExpression* node) {
   }
 }
 
+void Interpreter::Visit(FieldAccessExpression*) {}
+
+void Interpreter::Visit(MethodCallExpression*) {}
+
 void Interpreter::Visit(DeclareStatement* node) { variables[node->name] = 0; }
 
 void Interpreter::Visit(AssignStatement* node) {
@@ -213,6 +248,12 @@ void Interpreter::Visit(AssignStatement* node) {
   }
   node->expr->Accept(*this);
   variables[node->name] = result_value;
+}
+
+void Interpreter::Visit(FieldAssignStatement*) {}
+
+void Interpreter::Visit(ExpressionStatement* node) {
+  node->expr->Accept(*this);
 }
 
 void Interpreter::Visit(PrintStatement* node) {
@@ -254,6 +295,18 @@ SemanticAnalyzer::SemanticAnalyzer() {
   current_scope = root_scope.get();
 }
 
+const ClassInfo* SemanticAnalyzer::ResolveClassOfVar(const std::string& var_name) {
+  VariableInfo* var = current_scope->ResolveVariable(var_name);
+  if (!var) {
+    throw std::runtime_error("Undeclared variable '" + var_name + "'");
+  }
+  auto it = global_sym_table.classes.find(var->type.GetClassName());
+  if (it == global_sym_table.classes.end()) {
+    throw std::runtime_error("Variable '" + var_name + "' is not of class type");
+  }
+  return &it->second;
+}
+
 void SemanticAnalyzer::Visit(NumberExpression*) {}
 
 void SemanticAnalyzer::Visit(VarExpression* node) {
@@ -266,6 +319,30 @@ void SemanticAnalyzer::Visit(VarExpression* node) {
 void SemanticAnalyzer::Visit(BinaryExpression* node) {
   node->left->Accept(*this);
   node->right->Accept(*this);
+}
+
+void SemanticAnalyzer::Visit(FieldAccessExpression* node) {
+  const ClassInfo* cls = ResolveClassOfVar(node->object_name);
+  if (cls->fields.find(node->field_name) == cls->fields.end()) {
+    throw std::runtime_error("No field '" + node->field_name + "' in class '" +
+                             cls->name + "'");
+  }
+}
+
+void SemanticAnalyzer::Visit(MethodCallExpression* node) {
+  const ClassInfo* cls = ResolveClassOfVar(node->object_name);
+  auto it = cls->methods.find(node->method_name);
+  if (it == cls->methods.end()) {
+    throw std::runtime_error("No method '" + node->method_name + "' in class '" +
+                             cls->name + "'");
+  }
+  if (node->arguments.size() != it->second.arguments.size()) {
+    throw std::runtime_error("Wrong number of arguments for method '" +
+                             node->method_name + "'");
+  }
+  for (auto& arg : node->arguments) {
+    arg->Accept(*this);
+  }
 }
 
 void SemanticAnalyzer::Visit(DeclareStatement* node) {
@@ -281,6 +358,19 @@ void SemanticAnalyzer::Visit(AssignStatement* node) {
     throw std::runtime_error("Assign to undeclared variable '" + node->name +
                              "'");
   }
+  node->expr->Accept(*this);
+}
+
+void SemanticAnalyzer::Visit(FieldAssignStatement* node) {
+  const ClassInfo* cls = ResolveClassOfVar(node->object_name);
+  if (cls->fields.find(node->field_name) == cls->fields.end()) {
+    throw std::runtime_error("No field '" + node->field_name + "' in class '" +
+                             cls->name + "'");
+  }
+  node->expr->Accept(*this);
+}
+
+void SemanticAnalyzer::Visit(ExpressionStatement* node) {
   node->expr->Accept(*this);
 }
 

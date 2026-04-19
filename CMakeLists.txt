@@ -3,6 +3,12 @@ project(Compiler LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 
+find_package(LLVM REQUIRED CONFIG)
+include_directories(${LLVM_INCLUDE_DIRS})
+separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions(${LLVM_DEFINITIONS_LIST})
+llvm_map_components_to_libnames(LLVM_LIBS core support irreader)
+
 set(SOURCE_FILES
     src/main.cpp
     src/core/types.hpp
@@ -23,6 +29,8 @@ set(SOURCE_FILES
     src/core/visitors.cpp
     src/core/symtable.hpp
     src/core/symtable.cpp
+    src/core/ir_generator.hpp
+    src/core/ir_generator.cpp
 )
 
 add_executable(compiler ${SOURCE_FILES})
@@ -33,4 +41,5 @@ target_include_directories(compiler PRIVATE
     ${CMAKE_SOURCE_DIR}/src/core
 )
 
+target_link_libraries(compiler ${LLVM_LIBS})
 target_compile_options(compiler PRIVATE -Wall -Wextra -Wpedantic)

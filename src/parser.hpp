@@ -2,6 +2,7 @@
 
 #include "lexer.hpp"
 #include "statements.hpp"
+#include "types.hpp"
 
 class Parser {
  public:
@@ -14,7 +15,7 @@ class Parser {
   std::unique_ptr<BlockStatement> ParseBlock();
   std::unique_ptr<ClassDeclarationStatement> ParseClassDeclaration();
   std::unique_ptr<MethodDeclarationStatement> ParseMethodDeclaration();
-  std::string ParseType();
+  Type ParseType();
 
   std::unique_ptr<Expression> ParseExpression();
   std::unique_ptr<Expression> ParseComparison();

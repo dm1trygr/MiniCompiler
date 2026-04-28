@@ -33,7 +33,7 @@ void PrintVisitor::Visit(BinaryExpression* node) {
 
 void PrintVisitor::Visit(DeclareStatement* node) {
   PrintIndent();
-  out << "Declare: " << node->name << " : " << node->type << "\n";
+  out << "Declare: " << node->name << " : " << node->type.ToString() << "\n";
 }
 
 void PrintVisitor::Visit(AssignStatement* node) {
@@ -138,10 +138,11 @@ void PrintVisitor::Visit(MethodDeclarationStatement* node) {
   PrintIndent();
   out << "Method: " << node->name << "(";
   for (size_t i = 0; i < node->arguments.size(); ++i) {
-    out << node->arguments[i].first << ": " << node->arguments[i].second;
+    out << node->arguments[i].first << ": "
+        << node->arguments[i].second.ToString();
     if (i < node->arguments.size() - 1) out << ", ";
   }
-  out << ") -> " << node->return_type << "\n";
+  out << ") -> " << node->return_type.ToString() << "\n";
 
   depth++;
   node->body->Accept(*this);
@@ -165,9 +166,7 @@ void PrintVisitor::PrintIndent() {
   for (int i = 0; i < depth; ++i) out << "  ";
 }
 
-void Interpreter::Visit(NumberExpression* node) {
-  result_value = node->value;
-}
+void Interpreter::Visit(NumberExpression* node) { result_value = node->value; }
 
 void Interpreter::Visit(VarExpression* node) {
   if (variables.find(node->name) == variables.end()) {
@@ -201,9 +200,7 @@ void Interpreter::Visit(BinaryExpression* node) {
   }
 }
 
-void Interpreter::Visit(DeclareStatement* node) {
-  variables[node->name] = 0;
-}
+void Interpreter::Visit(DeclareStatement* node) { variables[node->name] = 0; }
 
 void Interpreter::Visit(AssignStatement* node) {
   if (variables.find(node->name) == variables.end()) {
@@ -257,8 +254,7 @@ void SemanticAnalyzer::Visit(NumberExpression*) {}
 void SemanticAnalyzer::Visit(VarExpression* node) {
   VariableInfo* var = current_scope->ResolveVariable(node->name);
   if (!var) {
-    throw std::runtime_error("Use of undeclared variable '" + node->name +
-                             "'");
+    throw std::runtime_error("Use of undeclared variable '" + node->name + "'");
   }
 }
 
@@ -288,8 +284,7 @@ void SemanticAnalyzer::Visit(PrintStatement* node) {
 }
 
 void SemanticAnalyzer::Visit(BlockStatement* node) {
-  auto new_scope =
-      std::make_unique<Scope>(current_scope, &global_sym_table);
+  auto new_scope = std::make_unique<Scope>(current_scope, &global_sym_table);
   Scope* raw_ptr = new_scope.get();
   current_scope->children.push_back(std::move(new_scope));
   current_scope = raw_ptr;
@@ -350,8 +345,7 @@ void SemanticAnalyzer::Visit(ClassDeclarationStatement* node) {
 
   global_sym_table.classes[node->name] = info;
 
-  auto class_scope =
-      std::make_unique<Scope>(current_scope, &global_sym_table);
+  auto class_scope = std::make_unique<Scope>(current_scope, &global_sym_table);
   Scope* class_scope_ptr = class_scope.get();
   current_scope->children.push_back(std::move(class_scope));
   current_scope = class_scope_ptr;
@@ -368,14 +362,13 @@ void SemanticAnalyzer::Visit(ClassDeclarationStatement* node) {
 }
 
 void SemanticAnalyzer::Visit(MethodDeclarationStatement* node) {
-  auto method_scope =
-      std::make_unique<Scope>(current_scope, &global_sym_table);
+  auto method_scope = std::make_unique<Scope>(current_scope, &global_sym_table);
   Scope* raw_ptr = method_scope.get();
   current_scope->children.push_back(std::move(method_scope));
   current_scope = raw_ptr;
 
   bool prev_in_method = in_method;
-  std::string prev_return_type = current_return_type;
+  Type prev_return_type = current_return_type;
   in_method = true;
   current_return_type = node->return_type;
 
@@ -397,15 +390,13 @@ void SemanticAnalyzer::Visit(ReturnStatement* node) {
     throw std::runtime_error("Return statement outside of method");
   }
 
-  if (current_return_type == "void") {
+  if (current_return_type.kind == TypeKind::VOID) {
     if (node->expr) {
-      throw std::runtime_error(
-          "Void method should not return a value");
+      throw std::runtime_error("Void method should not return a value");
     }
   } else {
     if (!node->expr) {
-      throw std::runtime_error(
-          "Non-void method must return a value");
+      throw std::runtime_error("Non-void method must return a value");
     }
     node->expr->Accept(*this);
   }

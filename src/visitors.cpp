@@ -136,16 +136,16 @@ void PrintVisitor::Visit(ClassDeclarationStatement* node) {
 
 void PrintVisitor::Visit(MethodDeclarationStatement* node) {
   PrintIndent();
-  out << "Method: " << node->name << "(";
-  for (size_t i = 0; i < node->arguments.size(); ++i) {
-    out << node->arguments[i].first << ": "
-        << node->arguments[i].second.ToString();
-    if (i < node->arguments.size() - 1) out << ", ";
+  out << "Method: " << node->data.name << "(";
+  for (size_t i = 0; i < node->data.arguments.size(); ++i) {
+    out << node->data.arguments[i].first << ": "
+        << node->data.arguments[i].second.ToString();
+    if (i < node->data.arguments.size() - 1) out << ", ";
   }
-  out << ") -> " << node->return_type.ToString() << "\n";
+  out << ") -> " << node->data.return_type.ToString() << "\n";
 
   depth++;
-  node->body->Accept(*this);
+  node->data.body->Accept(*this);
   depth--;
 }
 
@@ -328,16 +328,16 @@ void SemanticAnalyzer::Visit(ClassDeclarationStatement* node) {
   }
 
   for (auto& method : node->methods) {
-    if (info.methods.find(method->name) != info.methods.end()) {
-      throw std::runtime_error("Method '" + method->name +
+    if (info.methods.find(method->data.name) != info.methods.end()) {
+      throw std::runtime_error("Method '" + method->data.name +
                                "' already declared in class '" + node->name +
                                "'");
     }
 
     MethodInfo m_info;
-    m_info.name = method->name;
-    m_info.return_type = method->return_type;
-    for (auto& arg : method->arguments) {
+    m_info.name = method->data.name;
+    m_info.return_type = method->data.return_type;
+    for (auto& arg : method->data.arguments) {
       m_info.arguments.push_back({arg.first, arg.second});
     }
     info.methods[m_info.name] = m_info;
@@ -370,15 +370,15 @@ void SemanticAnalyzer::Visit(MethodDeclarationStatement* node) {
   bool prev_in_method = in_method;
   Type prev_return_type = current_return_type;
   in_method = true;
-  current_return_type = node->return_type;
+  current_return_type = node->data.return_type;
 
-  for (auto& arg : node->arguments) {
+  for (auto& arg : node->data.arguments) {
     if (!current_scope->DeclareVariable(arg.first, arg.second)) {
       throw std::runtime_error("Duplicate argument name '" + arg.first + "'");
     }
   }
 
-  node->body->Accept(*this);
+  node->data.body->Accept(*this);
 
   in_method = prev_in_method;
   current_return_type = prev_return_type;

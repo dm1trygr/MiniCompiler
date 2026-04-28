@@ -14,6 +14,8 @@ set(SOURCE_FILES
     src/parser.cpp
     src/statements.hpp
     src/statements.cpp
+    src/method_data.hpp
+    src/method_data.cpp
     src/visitors.hpp
     src/visitors.cpp
     src/symtable.hpp

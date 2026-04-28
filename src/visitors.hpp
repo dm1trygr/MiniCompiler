@@ -6,6 +6,7 @@
 #include "expressions.hpp"
 #include "statements.hpp"
 #include "symtable.hpp"
+#include "types.hpp"
 
 class Visitor {
  public:
@@ -103,5 +104,5 @@ class SemanticAnalyzer : public Visitor {
   std::unique_ptr<Scope> root_scope;
   Scope* current_scope;
   bool in_method = false;
-  std::string current_return_type;
+  Type current_return_type;
 };

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "expressions.hpp"
+#include "types.hpp"
 
 class Visitor;
 
@@ -15,13 +16,12 @@ class Statement {
 
 class DeclareStatement : public Statement {
  public:
-  DeclareStatement(const std::string& n, const std::string& t)
-      : name(n), type(t) {}
+  DeclareStatement(const std::string& n, const Type& t) : name(n), type(t) {}
   void Accept(Visitor& visitor) override;
 
  public:
   std::string name;
-  std::string type;
+  Type type;
 };
 
 class AssignStatement : public Statement {
@@ -37,8 +37,7 @@ class AssignStatement : public Statement {
 
 class PrintStatement : public Statement {
  public:
-  explicit PrintStatement(std::unique_ptr<Expression> e)
-      : expr(std::move(e)) {}
+  explicit PrintStatement(std::unique_ptr<Expression> e) : expr(std::move(e)) {}
   void Accept(Visitor& visitor) override;
 
  public:
@@ -72,8 +71,7 @@ class IfStatement : public Statement {
 
 class WhileStatement : public Statement {
  public:
-  WhileStatement(std::unique_ptr<Expression> cond,
-                 std::unique_ptr<Statement> b)
+  WhileStatement(std::unique_ptr<Expression> cond, std::unique_ptr<Statement> b)
       : condition(std::move(cond)), body(std::move(b)) {}
 
   void Accept(Visitor& visitor) override;
@@ -90,25 +88,24 @@ class ReturnStatement : public Statement {
   void Accept(Visitor& visitor) override;
 
  public:
-  std::unique_ptr<Expression> expr;  // nullptr for void return
+  std::unique_ptr<Expression> expr;
 };
 
 class MethodDeclarationStatement : public Statement {
  public:
-  MethodDeclarationStatement(
-      const std::string& n, const std::string& ret,
-      std::vector<std::pair<std::string, std::string>> args,
-      std::unique_ptr<BlockStatement> b)
+  MethodDeclarationStatement(const std::string& n, const Type& ret,
+                             std::vector<std::pair<std::string, Type>> args,
+                             std::unique_ptr<BlockStatement> b)
       : name(n),
-        return_type(ret),
         arguments(std::move(args)),
+        return_type(ret),
         body(std::move(b)) {}
   void Accept(Visitor& visitor) override;
 
  public:
   std::string name;
-  std::vector<std::pair<std::string, std::string>> arguments;
-  std::string return_type;
+  std::vector<std::pair<std::string, Type>> arguments;
+  Type return_type;
   std::unique_ptr<BlockStatement> body;
 };
 

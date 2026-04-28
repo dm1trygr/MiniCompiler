@@ -44,6 +44,13 @@ class Lexer {
   std::vector<Token> Tokenize();
 
  private:
+  void SkipSpaces();
+  Token ReadIdentifierOrKeyword();
+  Token ReadNumber();
+  Token ReadEqualsOperator();
+  Token ReadPunctuationOrOperator();
+
+ private:
   std::string src;
   size_t pos = 0;
 };

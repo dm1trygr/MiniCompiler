@@ -29,7 +29,7 @@ std::unique_ptr<Statement> Parser::ParseStatement() {
     Consume();
     std::string name = Consume().value;
     Expect(TokenType::COLON, "Expected ':' after variable name");
-    std::string type = ParseType();
+    Type type = ParseType();
     Expect(TokenType::SEMICOLON, "Expected ';'");
     return std::make_unique<DeclareStatement>(name, type);
   }
@@ -92,7 +92,7 @@ std::unique_ptr<ClassDeclarationStatement> Parser::ParseClassDeclaration() {
       Consume();
       std::string field_name = Consume().value;
       Expect(TokenType::COLON, "Expected ':' after field name");
-      std::string type = ParseType();
+      Type type = ParseType();
       Expect(TokenType::SEMICOLON, "Expected ';'");
       cls->fields.push_back(
           std::make_unique<DeclareStatement>(field_name, type));
@@ -112,11 +112,11 @@ std::unique_ptr<MethodDeclarationStatement> Parser::ParseMethodDeclaration() {
   std::string name = Consume().value;
   Expect(TokenType::LPAREN, "Expected '('");
 
-  std::vector<std::pair<std::string, std::string>> args;
+  std::vector<std::pair<std::string, Type>> args;
   if (Peek().type != TokenType::RPAREN) {
     std::string arg_name = Consume().value;
     Expect(TokenType::COLON, "Expected ':' after argument name");
-    std::string arg_type = ParseType();
+    Type arg_type = ParseType();
     args.push_back({arg_name, arg_type});
 
     while (Peek().type == TokenType::COMMA) {
@@ -130,7 +130,7 @@ std::unique_ptr<MethodDeclarationStatement> Parser::ParseMethodDeclaration() {
   Expect(TokenType::RPAREN, "Expected ')'");
 
   Expect(TokenType::COLON, "Expected ':' before return type");
-  std::string return_type = ParseType();
+  Type return_type = ParseType();
 
   auto body = ParseBlock();
 
@@ -138,15 +138,18 @@ std::unique_ptr<MethodDeclarationStatement> Parser::ParseMethodDeclaration() {
       name, return_type, std::move(args), std::move(body));
 }
 
-std::string Parser::ParseType() {
+Type Parser::ParseType() {
   if (Peek().type == TokenType::INT_TYPE) {
-    return Consume().value;
+    Consume();
+    return Type::Int();
   }
   if (Peek().type == TokenType::VOID_TYPE) {
-    return Consume().value;
+    Consume();
+    return Type::Void();
   }
   if (Peek().type == TokenType::ID) {
-    return Consume().value;
+    std::string class_name = Consume().value;
+    return Type::Class(class_name);
   }
   throw std::runtime_error("Expected type name");
 }

@@ -5,14 +5,16 @@
 #include <unordered_map>
 #include <vector>
 
+#include "types.hpp"
+
 struct VariableInfo {
   std::string name;
-  std::string type;
+  Type type;
 };
 
 struct MethodInfo {
   std::string name;
-  std::string return_type;
+  Type return_type;
   std::vector<VariableInfo> arguments;
 };
 
@@ -32,7 +34,7 @@ class Scope {
   Scope(Scope* parent_def, GlobalSymbolTable* gst)
       : parent(parent_def), global_sym_table(gst) {}
 
-  bool DeclareVariable(const std::string& name, const std::string& type);
+  bool DeclareVariable(const std::string& name, const Type& type);
   VariableInfo* ResolveVariable(const std::string& name);
 
  public:

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "expressions.hpp"
+#include "method_data.hpp"
 #include "types.hpp"
 
 class Visitor;
@@ -96,17 +97,11 @@ class MethodDeclarationStatement : public Statement {
   MethodDeclarationStatement(const std::string& n, const Type& ret,
                              std::vector<std::pair<std::string, Type>> args,
                              std::unique_ptr<BlockStatement> b)
-      : name(n),
-        arguments(std::move(args)),
-        return_type(ret),
-        body(std::move(b)) {}
+      : data(n, ret, std::move(args), std::move(b)) {}
   void Accept(Visitor& visitor) override;
 
  public:
-  std::string name;
-  std::vector<std::pair<std::string, Type>> arguments;
-  Type return_type;
-  std::unique_ptr<BlockStatement> body;
+  MethodData data;
 };
 
 class ClassDeclarationStatement : public Statement {

@@ -9,7 +9,7 @@ int main() {
   std::string code = R"(
         declare x: int;
         x = 0;
-        
+
         declare y: int;
         y = 5;
 

@@ -3,6 +3,7 @@
 #include "lexer.hpp"
 #include "statements.hpp"
 #include "types.hpp"
+#include "utils.hpp"
 
 class Parser {
  public:
@@ -23,7 +24,7 @@ class Parser {
   std::unique_ptr<ClassDeclarationStatement> ParseClassDeclaration();
   std::unique_ptr<DeclareStatement> ParseFieldDeclaration();
   std::unique_ptr<MethodDeclarationStatement> ParseMethodDeclaration();
-  std::vector<std::pair<std::string, Type>> ParseMethodArguments();
+  std::vector<VariableInfo> ParseMethodArguments();
   Type ParseType();
 
   std::unique_ptr<Expression> ParseExpression();

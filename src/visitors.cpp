@@ -24,7 +24,7 @@ void PrintVisitor::Visit(VarExpression* node) {
 
 void PrintVisitor::Visit(BinaryExpression* node) {
   PrintIndent();
-  out << "BinaryOp [" << node->op << "]\n";
+  out << "BinaryOp [" << OperatorToString(node->op) << "]\n";
   depth++;
   node->left->Accept(*this);
   node->right->Accept(*this);
@@ -182,21 +182,25 @@ void Interpreter::Visit(BinaryExpression* node) {
   node->right->Accept(*this);
   int right_val = result_value;
 
-  if (node->op == "==") {
-    result_value = (left_val == right_val) ? 1 : 0;
-  } else if (node->op == "+") {
-    result_value = left_val + right_val;
-  } else if (node->op == "-") {
-    result_value = left_val - right_val;
-  } else if (node->op == "*") {
-    result_value = left_val * right_val;
-  } else if (node->op == "/") {
-    if (right_val == 0) {
-      throw std::runtime_error("Division by zero");
-    }
-    result_value = left_val / right_val;
-  } else {
-    throw std::runtime_error("Unknown operator: " + node->op);
+  switch (node->op) {
+    case BinaryOperator::EQUAL:
+      result_value = (left_val == right_val) ? 1 : 0;
+      break;
+    case BinaryOperator::PLUS:
+      result_value = left_val + right_val;
+      break;
+    case BinaryOperator::MINUS:
+      result_value = left_val - right_val;
+      break;
+    case BinaryOperator::MULTIPLY:
+      result_value = left_val * right_val;
+      break;
+    case BinaryOperator::DIVIDE:
+      if (right_val == 0) {
+        throw std::runtime_error("Division by zero");
+      }
+      result_value = left_val / right_val;
+      break;
   }
 }
 

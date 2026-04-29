@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 
+#include "operators.hpp"
+
 class Visitor;
 
 class Expression {
@@ -32,12 +34,12 @@ class VarExpression : public Expression {
 class BinaryExpression : public Expression {
  public:
   BinaryExpression(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r,
-                   const std::string& o)
+                   BinaryOperator o)
       : left(std::move(l)), right(std::move(r)), op(o) {}
 
   void Accept(Visitor& visitor) override;
 
  public:
   std::unique_ptr<Expression> left, right;
-  std::string op;
+  BinaryOperator op;
 };

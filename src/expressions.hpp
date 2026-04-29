@@ -18,7 +18,6 @@ class NumberExpression : public Expression {
   explicit NumberExpression(int val) : value(val) {}
   void Accept(Visitor& visitor) override;
 
- public:
   int value;
 };
 
@@ -27,7 +26,6 @@ class VarExpression : public Expression {
   explicit VarExpression(const std::string& n) : name(n) {}
   void Accept(Visitor& visitor) override;
 
- public:
   std::string name;
 };
 
@@ -36,10 +34,8 @@ class BinaryExpression : public Expression {
   BinaryExpression(std::unique_ptr<Expression> l, std::unique_ptr<Expression> r,
                    BinaryOperator o)
       : left(std::move(l)), right(std::move(r)), op(o) {}
-
   void Accept(Visitor& visitor) override;
 
- public:
   std::unique_ptr<Expression> left, right;
   BinaryOperator op;
 };

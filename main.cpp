@@ -45,7 +45,6 @@ int main() {
     std::cout << "4) Interpretation\n";
     Interpreter interpreter;
     ast->Accept(interpreter);
-
   } catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << '\n';
   }

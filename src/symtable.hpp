@@ -21,6 +21,8 @@ class Scope {
   bool DeclareVariable(const std::string& name, const Type& type);
   VariableInfo* ResolveVariable(const std::string& name);
 
+  Scope* CreateChildScope();
+
   GlobalSymbolTable& global_sym_table;
   Scope* parent;
   std::vector<std::unique_ptr<Scope>> children;

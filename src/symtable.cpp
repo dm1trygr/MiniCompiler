@@ -18,3 +18,10 @@ VariableInfo* Scope::ResolveVariable(const std::string& name) {
   }
   return nullptr;
 }
+
+Scope* Scope::CreateChildScope() {
+  auto new_scope = std::make_unique<Scope>(this, global_sym_table);
+  Scope* raw_ptr = new_scope.get();
+  children.push_back(std::move(new_scope));
+  return raw_ptr;
+}

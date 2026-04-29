@@ -15,15 +15,14 @@ struct GlobalSymbolTable {
 
 class Scope {
  public:
-  Scope(Scope* parent_def, GlobalSymbolTable* gst)
-      : parent(parent_def), global_sym_table(gst) {}
+  Scope(Scope* parent_def, GlobalSymbolTable& gst)
+      : global_sym_table(gst), parent(parent_def) {}
 
   bool DeclareVariable(const std::string& name, const Type& type);
   VariableInfo* ResolveVariable(const std::string& name);
 
- public:
+  GlobalSymbolTable& global_sym_table;
   Scope* parent;
   std::vector<std::unique_ptr<Scope>> children;
   std::unordered_map<std::string, VariableInfo> local_variables;
-  GlobalSymbolTable* global_sym_table;
 };

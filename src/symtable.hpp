@@ -6,23 +6,7 @@
 #include <vector>
 
 #include "types.hpp"
-
-struct VariableInfo {
-  std::string name;
-  Type type;
-};
-
-struct MethodInfo {
-  std::string name;
-  Type return_type;
-  std::vector<VariableInfo> arguments;
-};
-
-struct ClassInfo {
-  std::string name;
-  std::unordered_map<std::string, VariableInfo> fields;
-  std::unordered_map<std::string, MethodInfo> methods;
-};
+#include "utils.hpp"
 
 struct GlobalSymbolTable {
   std::unordered_map<std::string, ClassInfo> classes;

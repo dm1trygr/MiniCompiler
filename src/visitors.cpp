@@ -138,8 +138,8 @@ void PrintVisitor::Visit(MethodDeclarationStatement* node) {
   PrintIndent();
   out << "Method: " << node->data.name << "(";
   for (size_t i = 0; i < node->data.arguments.size(); ++i) {
-    out << node->data.arguments[i].first << ": "
-        << node->data.arguments[i].second.ToString();
+    out << node->data.arguments[i].name << ": "
+        << node->data.arguments[i].type.ToString();
     if (i < node->data.arguments.size() - 1) out << ", ";
   }
   out << ") -> " << node->data.return_type.ToString() << "\n";
@@ -338,16 +338,12 @@ void SemanticAnalyzer::Visit(ClassDeclarationStatement* node) {
                                "'");
     }
 
-    MethodInfo m_info;
-    m_info.name = method->data.name;
-    m_info.return_type = method->data.return_type;
-    for (auto& arg : method->data.arguments) {
-      m_info.arguments.push_back({arg.first, arg.second});
-    }
-    info.methods[m_info.name] = m_info;
+    info.methods.emplace(method->data.name,
+                         MethodInfo(method->data.name, method->data.return_type,
+                                    method->data.arguments));
   }
 
-  global_sym_table.classes[node->name] = info;
+  global_sym_table.classes[node->name] = std::move(info);
 
   auto class_scope = std::make_unique<Scope>(current_scope, &global_sym_table);
   Scope* class_scope_ptr = class_scope.get();
@@ -377,8 +373,8 @@ void SemanticAnalyzer::Visit(MethodDeclarationStatement* node) {
   current_return_type = node->data.return_type;
 
   for (auto& arg : node->data.arguments) {
-    if (!current_scope->DeclareVariable(arg.first, arg.second)) {
-      throw std::runtime_error("Duplicate argument name '" + arg.first + "'");
+    if (!current_scope->DeclareVariable(arg.name, arg.type)) {
+      throw std::runtime_error("Duplicate argument name '" + arg.name + "'");
     }
   }
 

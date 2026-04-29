@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "expressions.hpp"
-#include "method_data.hpp"
 #include "types.hpp"
+#include "utils.hpp"
 
 class Visitor;
 
@@ -95,13 +95,13 @@ class ReturnStatement : public Statement {
 class MethodDeclarationStatement : public Statement {
  public:
   MethodDeclarationStatement(const std::string& n, const Type& ret,
-                             std::vector<std::pair<std::string, Type>> args,
+                             std::vector<VariableInfo> args,
                              std::unique_ptr<BlockStatement> b)
       : data(n, ret, std::move(args), std::move(b)) {}
   void Accept(Visitor& visitor) override;
 
  public:
-  MethodData data;
+  MethodInfo data;
 };
 
 class ClassDeclarationStatement : public Statement {

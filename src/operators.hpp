@@ -4,13 +4,7 @@
 
 #include "lexer.hpp"
 
-enum class BinaryOperator {
-  PLUS,      // +
-  MINUS,     // -
-  MULTIPLY,  // *
-  DIVIDE,    // /
-  EQUAL      // ==
-};
+enum class BinaryOperator { PLUS, MINUS, MULTIPLY, DIVIDE, EQUAL };
 
 std::string OperatorToString(BinaryOperator op);
 BinaryOperator TokenTypeToOperator(TokenType type);

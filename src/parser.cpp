@@ -144,8 +144,8 @@ std::unique_ptr<MethodDeclarationStatement> Parser::ParseMethodDeclaration() {
       name, return_type, std::move(args), std::move(body));
 }
 
-std::vector<std::pair<std::string, Type>> Parser::ParseMethodArguments() {
-  std::vector<std::pair<std::string, Type>> args;
+std::vector<VariableInfo> Parser::ParseMethodArguments() {
+  std::vector<VariableInfo> args;
 
   if (Peek().type != TokenType::RPAREN) {
     std::string arg_name = Consume().value;

@@ -12,9 +12,18 @@ class Parser {
 
  private:
   std::unique_ptr<Statement> ParseStatement();
+  std::unique_ptr<Statement> ParseReturnStatement();
+  std::unique_ptr<Statement> ParseDeclareStatement();
+  std::unique_ptr<Statement> ParseAssignStatement();
+  std::unique_ptr<Statement> ParsePrintStatement();
+  std::unique_ptr<Statement> ParseIfStatement();
+  std::unique_ptr<Statement> ParseWhileStatement();
+
   std::unique_ptr<BlockStatement> ParseBlock();
   std::unique_ptr<ClassDeclarationStatement> ParseClassDeclaration();
+  std::unique_ptr<DeclareStatement> ParseFieldDeclaration();
   std::unique_ptr<MethodDeclarationStatement> ParseMethodDeclaration();
+  std::vector<std::pair<std::string, Type>> ParseMethodArguments();
   Type ParseType();
 
   std::unique_ptr<Expression> ParseExpression();
@@ -27,6 +36,7 @@ class Parser {
   Token Consume();
   void Expect(TokenType type, const std::string& err);
 
+ private:
   std::vector<Token> tokens;
   size_t pos = 0;
 };

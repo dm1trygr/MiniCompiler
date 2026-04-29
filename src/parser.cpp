@@ -14,69 +14,86 @@ std::unique_ptr<Statement> Parser::ParseStatement() {
   if (Peek().type == TokenType::CLASS) {
     return ParseClassDeclaration();
   }
-
   if (Peek().type == TokenType::RETURN) {
-    Consume();
-    std::unique_ptr<Expression> expr = nullptr;
-    if (Peek().type != TokenType::SEMICOLON) {
-      expr = ParseExpression();
-    }
-    Expect(TokenType::SEMICOLON, "Expected ';' after return");
-    return std::make_unique<ReturnStatement>(std::move(expr));
+    return ParseReturnStatement();
   }
-
   if (Peek().type == TokenType::DECLARE) {
-    Consume();
-    std::string name = Consume().value;
-    Expect(TokenType::COLON, "Expected ':' after variable name");
-    Type type = ParseType();
-    Expect(TokenType::SEMICOLON, "Expected ';'");
-    return std::make_unique<DeclareStatement>(name, type);
+    return ParseDeclareStatement();
   }
-
   if (Peek().type == TokenType::ID) {
-    std::string name = Consume().value;
-    Expect(TokenType::ASSIGN, "Expected '='");
-    auto expr = ParseExpression();
-    Expect(TokenType::SEMICOLON, "Expected ';'");
-    return std::make_unique<AssignStatement>(name, std::move(expr));
+    return ParseAssignStatement();
   }
-
   if (Peek().type == TokenType::PRINT) {
-    Consume();
-    Expect(TokenType::LPAREN, "Expected '('");
-    auto expr = ParseExpression();
-    Expect(TokenType::RPAREN, "Expected ')'");
-    Expect(TokenType::SEMICOLON, "Expected ';'");
-    return std::make_unique<PrintStatement>(std::move(expr));
+    return ParsePrintStatement();
   }
-
   if (Peek().type == TokenType::IF) {
-    Consume();
-    Expect(TokenType::LPAREN, "Expected '('");
-    auto cond = ParseExpression();
-    Expect(TokenType::RPAREN, "Expected ')'");
-    auto then_block = ParseBlock();
-
-    std::unique_ptr<Statement> else_block = nullptr;
-    if (Peek().type == TokenType::ELSE) {
-      Consume();
-      else_block = ParseBlock();
-    }
-    return std::make_unique<IfStatement>(std::move(cond), std::move(then_block),
-                                         std::move(else_block));
+    return ParseIfStatement();
   }
-
   if (Peek().type == TokenType::WHILE) {
-    Consume();
-    Expect(TokenType::LPAREN, "Expected '('");
-    auto cond = ParseExpression();
-    Expect(TokenType::RPAREN, "Expected ')'");
-    auto body = ParseBlock();
-    return std::make_unique<WhileStatement>(std::move(cond), std::move(body));
+    return ParseWhileStatement();
   }
-
   throw std::runtime_error("Unknown statement");
+}
+
+std::unique_ptr<Statement> Parser::ParseReturnStatement() {
+  Consume();
+  std::unique_ptr<Expression> expr = nullptr;
+  if (Peek().type != TokenType::SEMICOLON) {
+    expr = ParseExpression();
+  }
+  Expect(TokenType::SEMICOLON, "Expected ';' after return");
+  return std::make_unique<ReturnStatement>(std::move(expr));
+}
+
+std::unique_ptr<Statement> Parser::ParseDeclareStatement() {
+  Consume();
+  std::string name = Consume().value;
+  Expect(TokenType::COLON, "Expected ':' after variable name");
+  Type type = ParseType();
+  Expect(TokenType::SEMICOLON, "Expected ';'");
+  return std::make_unique<DeclareStatement>(name, type);
+}
+
+std::unique_ptr<Statement> Parser::ParseAssignStatement() {
+  std::string name = Consume().value;
+  Expect(TokenType::ASSIGN, "Expected '='");
+  auto expr = ParseExpression();
+  Expect(TokenType::SEMICOLON, "Expected ';'");
+  return std::make_unique<AssignStatement>(name, std::move(expr));
+}
+
+std::unique_ptr<Statement> Parser::ParsePrintStatement() {
+  Consume();
+  Expect(TokenType::LPAREN, "Expected '('");
+  auto expr = ParseExpression();
+  Expect(TokenType::RPAREN, "Expected ')'");
+  Expect(TokenType::SEMICOLON, "Expected ';'");
+  return std::make_unique<PrintStatement>(std::move(expr));
+}
+
+std::unique_ptr<Statement> Parser::ParseIfStatement() {
+  Consume();
+  Expect(TokenType::LPAREN, "Expected '('");
+  auto cond = ParseExpression();
+  Expect(TokenType::RPAREN, "Expected ')'");
+  auto then_block = ParseBlock();
+
+  std::unique_ptr<Statement> else_block = nullptr;
+  if (Peek().type == TokenType::ELSE) {
+    Consume();
+    else_block = ParseBlock();
+  }
+  return std::make_unique<IfStatement>(std::move(cond), std::move(then_block),
+                                       std::move(else_block));
+}
+
+std::unique_ptr<Statement> Parser::ParseWhileStatement() {
+  Consume();
+  Expect(TokenType::LPAREN, "Expected '('");
+  auto cond = ParseExpression();
+  Expect(TokenType::RPAREN, "Expected ')'");
+  auto body = ParseBlock();
+  return std::make_unique<WhileStatement>(std::move(cond), std::move(body));
 }
 
 std::unique_ptr<ClassDeclarationStatement> Parser::ParseClassDeclaration() {
@@ -89,13 +106,7 @@ std::unique_ptr<ClassDeclarationStatement> Parser::ParseClassDeclaration() {
   while (Peek().type != TokenType::RBRACE &&
          Peek().type != TokenType::END_OF_FILE) {
     if (Peek().type == TokenType::DECLARE) {
-      Consume();
-      std::string field_name = Consume().value;
-      Expect(TokenType::COLON, "Expected ':' after field name");
-      Type type = ParseType();
-      Expect(TokenType::SEMICOLON, "Expected ';'");
-      cls->fields.push_back(
-          std::make_unique<DeclareStatement>(field_name, type));
+      cls->fields.push_back(ParseFieldDeclaration());
     } else if (Peek().type == TokenType::METHOD) {
       cls->methods.push_back(ParseMethodDeclaration());
     } else {
@@ -107,12 +118,35 @@ std::unique_ptr<ClassDeclarationStatement> Parser::ParseClassDeclaration() {
   return cls;
 }
 
+std::unique_ptr<DeclareStatement> Parser::ParseFieldDeclaration() {
+  Consume();
+  std::string field_name = Consume().value;
+  Expect(TokenType::COLON, "Expected ':' after field name");
+  Type type = ParseType();
+  Expect(TokenType::SEMICOLON, "Expected ';'");
+  return std::make_unique<DeclareStatement>(field_name, type);
+}
+
 std::unique_ptr<MethodDeclarationStatement> Parser::ParseMethodDeclaration() {
   Expect(TokenType::METHOD, "Expected 'method'");
   std::string name = Consume().value;
   Expect(TokenType::LPAREN, "Expected '('");
 
+  auto args = ParseMethodArguments();
+
+  Expect(TokenType::RPAREN, "Expected ')'");
+  Expect(TokenType::COLON, "Expected ':' before return type");
+  Type return_type = ParseType();
+
+  auto body = ParseBlock();
+
+  return std::make_unique<MethodDeclarationStatement>(
+      name, return_type, std::move(args), std::move(body));
+}
+
+std::vector<std::pair<std::string, Type>> Parser::ParseMethodArguments() {
   std::vector<std::pair<std::string, Type>> args;
+
   if (Peek().type != TokenType::RPAREN) {
     std::string arg_name = Consume().value;
     Expect(TokenType::COLON, "Expected ':' after argument name");
@@ -127,15 +161,8 @@ std::unique_ptr<MethodDeclarationStatement> Parser::ParseMethodDeclaration() {
       args.push_back({arg_name, arg_type});
     }
   }
-  Expect(TokenType::RPAREN, "Expected ')'");
 
-  Expect(TokenType::COLON, "Expected ':' before return type");
-  Type return_type = ParseType();
-
-  auto body = ParseBlock();
-
-  return std::make_unique<MethodDeclarationStatement>(
-      name, return_type, std::move(args), std::move(body));
+  return args;
 }
 
 Type Parser::ParseType() {

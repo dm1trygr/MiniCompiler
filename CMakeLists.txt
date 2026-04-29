@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 23)
 set(SOURCE_FILES
     main.cpp
     src/types.hpp
+    src/types.cpp
+    src/operators.hpp
+    src/operators.cpp
     src/expressions.hpp
     src/expressions.cpp
     src/lexer.hpp

@@ -172,7 +172,7 @@ std::unique_ptr<Expression> Parser::ParseExpression() {
 std::unique_ptr<Expression> Parser::ParseComparison() {
   auto left = ParseAdditive();
   if (Peek().type == TokenType::EQ) {
-    std::string op = Consume().value;
+    BinaryOperator op = TokenTypeToOperator(Consume().type);
     auto right = ParseAdditive();
     return std::make_unique<BinaryExpression>(std::move(left), std::move(right),
                                               op);
@@ -183,7 +183,7 @@ std::unique_ptr<Expression> Parser::ParseComparison() {
 std::unique_ptr<Expression> Parser::ParseAdditive() {
   auto left = ParseMultiplicative();
   while (Peek().type == TokenType::PLUS || Peek().type == TokenType::MINUS) {
-    std::string op = Consume().value;
+    BinaryOperator op = TokenTypeToOperator(Consume().type);
     auto right = ParseMultiplicative();
     left = std::make_unique<BinaryExpression>(std::move(left), std::move(right),
                                               op);
@@ -194,7 +194,7 @@ std::unique_ptr<Expression> Parser::ParseAdditive() {
 std::unique_ptr<Expression> Parser::ParseMultiplicative() {
   auto left = ParsePrimary();
   while (Peek().type == TokenType::MULT || Peek().type == TokenType::DIVIDE) {
-    std::string op = Consume().value;
+    BinaryOperator op = TokenTypeToOperator(Consume().type);
     auto right = ParsePrimary();
     left = std::make_unique<BinaryExpression>(std::move(left), std::move(right),
                                               op);

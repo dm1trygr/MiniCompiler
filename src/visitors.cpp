@@ -289,10 +289,7 @@ void SemanticAnalyzer::Visit(PrintStatement* node) {
 }
 
 void SemanticAnalyzer::Visit(BlockStatement* node) {
-  auto new_scope = std::make_unique<Scope>(current_scope, global_sym_table);
-  Scope* raw_ptr = new_scope.get();
-  current_scope->children.push_back(std::move(new_scope));
-  current_scope = raw_ptr;
+  current_scope = current_scope->CreateChildScope();
 
   for (auto& stmt : node->statements) {
     stmt->Accept(*this);
@@ -346,10 +343,7 @@ void SemanticAnalyzer::Visit(ClassDeclarationStatement* node) {
 
   global_sym_table.classes[node->name] = std::move(info);
 
-  auto class_scope = std::make_unique<Scope>(current_scope, global_sym_table);
-  Scope* class_scope_ptr = class_scope.get();
-  current_scope->children.push_back(std::move(class_scope));
-  current_scope = class_scope_ptr;
+  current_scope = current_scope->CreateChildScope();
 
   for (auto& field : node->fields) {
     current_scope->DeclareVariable(field->name, field->type);
@@ -363,10 +357,7 @@ void SemanticAnalyzer::Visit(ClassDeclarationStatement* node) {
 }
 
 void SemanticAnalyzer::Visit(MethodDeclarationStatement* node) {
-  auto method_scope = std::make_unique<Scope>(current_scope, global_sym_table);
-  Scope* raw_ptr = method_scope.get();
-  current_scope->children.push_back(std::move(method_scope));
-  current_scope = raw_ptr;
+  current_scope = current_scope->CreateChildScope();
 
   bool prev_in_method = in_method;
   Type prev_return_type = current_return_type;

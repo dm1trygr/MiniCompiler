@@ -1,8 +1,8 @@
 #include <cctype>
 #include <iostream>
 
-#include "src/parser.hpp"
-#include "src/visitors.hpp"
+#include "core/parser.hpp"
+#include "core/visitors.hpp"
 
 int main() {
   // Here is code demonstration
@@ -36,6 +36,7 @@ int main() {
     std::cout << "2) Building Tree\n";
     Parser parser(tokens);
     auto ast = parser.ParseProgram();
+    std::cout << "Ok!\n\n";
 
     std::cout << "3) Saving Tree to file (Using Visitor)\n";
     PrintVisitor printer("ast_tree.txt");
@@ -45,6 +46,12 @@ int main() {
     std::cout << "4) Interpretation\n";
     Interpreter interpreter;
     ast->Accept(interpreter);
+    std::cout << "Finished!\n\n";
+
+    std::cout << "5) Semantic Analysis\n";
+    SemanticAnalyzer analyzer;
+    ast->Accept(analyzer);
+    std::cout << "Ok!\n";
   } catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << '\n';
   }

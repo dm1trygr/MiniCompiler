@@ -317,31 +317,33 @@ void SemanticAnalyzer::Visit(ClassDeclarationStatement* node) {
     throw std::runtime_error("Class '" + node->name + "' already declared");
   }
 
-  ClassInfo info;
-  info.name = node->name;
+  std::unordered_map<std::string, VariableInfo> fields;
+  std::unordered_map<std::string, MethodInfo> methods;
 
   for (auto& field : node->fields) {
-    if (info.fields.find(field->name) != info.fields.end()) {
+    if (fields.find(field->name) != fields.end()) {
       throw std::runtime_error("Field '" + field->name +
                                "' already declared in class '" + node->name +
                                "'");
     }
-    info.fields[field->name] = {field->name, field->type};
+    fields[field->name] = {field->name, field->type};
   }
 
   for (auto& method : node->methods) {
-    if (info.methods.find(method->data.name) != info.methods.end()) {
+    if (methods.find(method->data.name) != methods.end()) {
       throw std::runtime_error("Method '" + method->data.name +
                                "' already declared in class '" + node->name +
                                "'");
     }
 
-    info.methods.emplace(method->data.name,
-                         MethodInfo(method->data.name, method->data.return_type,
-                                    method->data.arguments));
+    methods.emplace(method->data.name,
+                    MethodInfo(method->data.name, method->data.return_type,
+                               method->data.arguments));
   }
 
-  global_sym_table.classes[node->name] = std::move(info);
+  global_sym_table.classes.emplace(node->name,
+                                   ClassInfo(node->name, std::move(fields),
+                                             std::move(methods)));
 
   current_scope = current_scope->CreateChildScope();
 

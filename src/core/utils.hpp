@@ -41,7 +41,10 @@ struct ClassInfo {
   std::unordered_map<std::string, VariableInfo> fields;
   std::unordered_map<std::string, MethodInfo> methods;
 
-  ClassInfo() = default;
+  ClassInfo(const std::string& n,
+            std::unordered_map<std::string, VariableInfo> flds,
+            std::unordered_map<std::string, MethodInfo> mthds);
+
   ClassInfo(ClassInfo&&) = default;
   ClassInfo& operator=(ClassInfo&&) = default;
 

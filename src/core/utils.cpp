@@ -15,3 +15,8 @@ MethodInfo::MethodInfo(const std::string& n, const Type& ret,
     : name(n), return_type(ret), arguments(args), body(nullptr) {}
 
 MethodInfo::~MethodInfo() = default;
+
+ClassInfo::ClassInfo(const std::string& n,
+                     std::unordered_map<std::string, VariableInfo> flds,
+                     std::unordered_map<std::string, MethodInfo> mthds)
+    : name(n), fields(std::move(flds)), methods(std::move(mthds)) {}

@@ -6,7 +6,7 @@
 
 ```
 Program ::= Statement*;
-Statement ::= ClassDeclaration | VariableDeclaration | Assignment | IfStatement | WhileStatement | PrintStatement | ReturnStatement;
+Statement ::= ClassDeclaration | MethodDeclaration | VariableDeclaration | Assignment | FieldAssignment | IfStatement | WhileStatement | PrintStatement | ReturnStatement | ExpressionStatement;
 ClassDeclaration ::= "class" Identifier "{" ClassMember* "}";
 ClassMember ::= FieldDeclaration | MethodDeclaration;
 FieldDeclaration ::= "declare" Identifier ":" Type ";";
@@ -15,22 +15,26 @@ ParameterList ::= Parameter ("," Parameter)*;
 Parameter ::= Identifier ":" Type;
 VariableDeclaration ::= "declare" Identifier ":" Type ";";
 Assignment ::= Identifier "=" Expression ";";
+FieldAssignment ::= Identifier "." Identifier "=" Expression ";";
 IfStatement ::= "if" "(" Expression ")" Block ("else" Block)?;
 WhileStatement ::= "while" "(" Expression ")" Block;
 PrintStatement ::= "print" "(" Expression ")" ";";
 ReturnStatement ::= "return" Expression? ";";
+ExpressionStatement ::= Expression ";";
 Block ::= "{" Statement* "}";
 Expression ::= Comparison;
 Comparison ::= Additive ("==" Additive)?;
 Additive ::= Multiplicative (("+" | "-") Multiplicative)*;
 Multiplicative ::= Primary (("*" | "/") Primary)*;
-Primary ::= IntLiteral | Identifier | "(" Expression ")";
+Primary ::= IntLiteral | Identifier | FieldAccess | MethodCall | FunctionCall | "(" Expression ")";
+FieldAccess ::= Identifier "." Identifier;
+MethodCall ::= Identifier "." Identifier "(" ArgumentList? ")";
+FunctionCall ::= Identifier "(" ArgumentList? ")";
+ArgumentList ::= Expression ("," Expression)*;
 Type ::= "int" | "void" | Identifier;
 Identifier ::= [a-zA-Z_][a-zA-Z0-9_]*;
 IntLiteral ::= [0-9]+;
 ```
-
-**Важно**: В текущей итерации классы и методы интерпретатором игнорируются (но вообще распознаются парсером и лексером, через семантический анализ тоже проходят) - об этом повторно указано в разделе "Что поддерживается"
 
 ## Что поддерживается
 

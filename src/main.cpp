@@ -4,6 +4,7 @@
 
 #include "core/ir_generator.hpp"
 #include "core/parser.hpp"
+#include "core/semantic_analyzer.hpp"
 #include "core/visitors.hpp"
 
 std::string ReadFile(const std::string& path) {

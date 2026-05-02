@@ -30,6 +30,8 @@ set(SOURCE_FILES
     src/core/visitors.cpp
     src/core/symtable.hpp
     src/core/symtable.cpp
+    src/core/semantic_analyzer.hpp
+    src/core/semantic_analyzer.cpp
     src/core/ir_generator.hpp
     src/core/ir_generator.cpp
 )

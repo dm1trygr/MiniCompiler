@@ -6,9 +6,26 @@
 
 #include <stdexcept>
 
+#include "operators.hpp"
+
 IrGenerator::IrGenerator(const std::string& module_name)
     : module(std::make_unique<llvm::Module>(module_name, context)),
       builder(context) {}
+
+llvm::Type* IrGenerator::GetLLVMType(const Type& type) {
+  if (type.kind == TypeKind::INT) {
+    return llvm::Type::getInt32Ty(context);
+  } else if (type.kind == TypeKind::VOID) {
+    return llvm::Type::getVoidTy(context);
+  } else if (type.kind == TypeKind::CLASS) {
+    auto it = class_types.find(type.class_name);
+    if (it != class_types.end()) {
+      return it->second;
+    }
+    throw std::runtime_error("Unknown class type: " + type.class_name);
+  }
+  throw std::runtime_error("Unknown type");
+}
 
 void IrGenerator::PushScope() { scopes.emplace_back(); }
 
@@ -54,8 +71,8 @@ llvm::Value* IrGenerator::GetFieldPtr(const std::string& obj_name,
   IrVarInfo* info = LookupVariable(obj_name);
   if (!info) throw std::runtime_error("IR: undeclared '" + obj_name + "'");
 
-  llvm::StructType* st = class_types[info->type_name];
-  int idx = GetFieldIndex(info->type_name, field_name);
+  llvm::StructType* st = class_types[info->type.class_name];
+  int idx = GetFieldIndex(info->type.class_name, field_name);
 
   return builder.CreateStructGEP(st, info->alloca_inst, idx,
                                  obj_name + "." + field_name + ".ptr");
@@ -121,13 +138,23 @@ void IrGenerator::Visit(BinaryExpression* node) {
   node->right->Accept(*this);
   llvm::Value* r = last_value;
 
-  if (node->op == "+") last_value = builder.CreateAdd(l, r, "add");
-  else if (node->op == "-") last_value = builder.CreateSub(l, r, "sub");
-  else if (node->op == "*") last_value = builder.CreateMul(l, r, "mul");
-  else if (node->op == "/") last_value = builder.CreateSDiv(l, r, "div");
-  else if (node->op == "==") {
-    auto* cmp = builder.CreateICmpEQ(l, r, "eq");
-    last_value = builder.CreateZExt(cmp, llvm::Type::getInt32Ty(context), "eqext");
+  switch (node->op) {
+    case BinaryOperator::PLUS:
+      last_value = builder.CreateAdd(l, r, "add");
+      break;
+    case BinaryOperator::MINUS:
+      last_value = builder.CreateSub(l, r, "sub");
+      break;
+    case BinaryOperator::MULTIPLY:
+      last_value = builder.CreateMul(l, r, "mul");
+      break;
+    case BinaryOperator::DIVIDE:
+      last_value = builder.CreateSDiv(l, r, "div");
+      break;
+    case BinaryOperator::EQUAL:
+      auto* cmp = builder.CreateICmpEQ(l, r, "eq");
+      last_value = builder.CreateZExt(cmp, llvm::Type::getInt32Ty(context), "eqext");
+      break;
   }
 }
 
@@ -141,7 +168,7 @@ void IrGenerator::Visit(MethodCallExpression* node) {
   IrVarInfo* info = LookupVariable(node->object_name);
   if (!info) throw std::runtime_error("IR: undeclared '" + node->object_name + "'");
 
-  std::string fn_name = info->type_name + "." + node->method_name;
+  std::string fn_name = info->type.class_name + "." + node->method_name;
   llvm::Function* fn = module->getFunction(fn_name);
   if (!fn) throw std::runtime_error("IR: no function '" + fn_name + "'");
 
@@ -160,8 +187,8 @@ void IrGenerator::Visit(MethodCallExpression* node) {
 }
 
 void IrGenerator::Visit(DeclareStatement* node) {
-  if (class_types.count(node->type)) {
-    llvm::StructType* st = class_types[node->type];
+  if (node->type.kind == TypeKind::CLASS) {
+    llvm::StructType* st = class_types[node->type.class_name];
     llvm::AllocaInst* alloca = CreateEntryAlloca(current_function, node->name, st);
     auto zero = llvm::ConstantAggregateZero::get(st);
     builder.CreateStore(zero, alloca);
@@ -172,7 +199,7 @@ void IrGenerator::Visit(DeclareStatement* node) {
                           llvm::Type::getInt32Ty(context));
     builder.CreateStore(llvm::ConstantInt::get(context, llvm::APInt(32, 0)),
                         alloca);
-    scopes.back()[node->name] = {alloca, "int"};
+    scopes.back()[node->name] = {alloca, node->type};
   }
 }
 
@@ -212,27 +239,29 @@ void IrGenerator::Visit(BlockStatement* node) {
 void IrGenerator::Visit(IfStatement* node) {
   node->condition->Accept(*this);
   auto* cond = builder.CreateICmpNE(
-      last_value, llvm::ConstantInt::get(context, llvm::APInt(32, 0)), "if");
+      last_value, llvm::ConstantInt::get(context, llvm::APInt(32, 0)), "ifc");
 
   auto* then_bb = llvm::BasicBlock::Create(context, "then", current_function);
-  auto* else_bb = node->else_branch
-      ? llvm::BasicBlock::Create(context, "else", current_function)
-      : nullptr;
-  auto* merge_bb = llvm::BasicBlock::Create(context, "ifcont", current_function);
+  auto* else_bb = llvm::BasicBlock::Create(context, "else", current_function);
+  auto* end_bb = llvm::BasicBlock::Create(context, "ifend", current_function);
 
-  builder.CreateCondBr(cond, then_bb, else_bb ? else_bb : merge_bb);
+  if (node->else_branch) {
+    builder.CreateCondBr(cond, then_bb, else_bb);
+  } else {
+    builder.CreateCondBr(cond, then_bb, end_bb);
+  }
 
   builder.SetInsertPoint(then_bb);
   node->then_branch->Accept(*this);
-  if (!builder.GetInsertBlock()->getTerminator()) builder.CreateBr(merge_bb);
+  if (!builder.GetInsertBlock()->getTerminator()) builder.CreateBr(end_bb);
 
-  if (else_bb) {
+  if (node->else_branch) {
     builder.SetInsertPoint(else_bb);
     node->else_branch->Accept(*this);
-    if (!builder.GetInsertBlock()->getTerminator()) builder.CreateBr(merge_bb);
+    if (!builder.GetInsertBlock()->getTerminator()) builder.CreateBr(end_bb);
   }
 
-  builder.SetInsertPoint(merge_bb);
+  builder.SetInsertPoint(end_bb);
 }
 
 void IrGenerator::Visit(WhileStatement* node) {
@@ -258,7 +287,7 @@ void IrGenerator::Visit(ClassDeclarationStatement* node) {
   std::vector<llvm::Type*> field_types;
   std::vector<std::string> field_names;
   for (auto& field : node->fields) {
-    field_types.push_back(llvm::Type::getInt32Ty(context));
+    field_types.push_back(GetLLVMType(field->type));
     field_names.push_back(field->name);
   }
 
@@ -280,24 +309,22 @@ void IrGenerator::Visit(ClassDeclarationStatement* node) {
 
 void IrGenerator::Visit(MethodDeclarationStatement* node) {
   std::string fn_name = current_class_name.empty()
-                            ? node->name
-                            : current_class_name + "." + node->name;
+                            ? node->data.name
+                            : current_class_name + "." + node->data.name;
 
   std::vector<llvm::Type*> arg_types;
-  for (size_t i = 0; i < node->arguments.size(); ++i) {
-    arg_types.push_back(llvm::Type::getInt32Ty(context));
+  for (size_t i = 0; i < node->data.arguments.size(); ++i) {
+    arg_types.push_back(GetLLVMType(node->data.arguments[i].type));
   }
 
-  llvm::Type* ret = (node->return_type == "void")
-                        ? llvm::Type::getVoidTy(context)
-                        : llvm::Type::getInt32Ty(context);
+  llvm::Type* ret = GetLLVMType(node->data.return_type);
 
   auto* ft = llvm::FunctionType::get(ret, arg_types, false);
   auto* fn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage,
                                     fn_name, module.get());
 
   size_t idx = 0;
-  for (auto& arg : fn->args()) arg.setName(node->arguments[idx++].first);
+  for (auto& arg : fn->args()) arg.setName(node->data.arguments[idx++].name);
 
   auto* entry = llvm::BasicBlock::Create(context, "entry", fn);
   builder.SetInsertPoint(entry);
@@ -307,17 +334,17 @@ void IrGenerator::Visit(MethodDeclarationStatement* node) {
 
   idx = 0;
   for (auto& arg : fn->args()) {
-    auto* alloca = CreateEntryAlloca(fn, node->arguments[idx].first,
-                                     llvm::Type::getInt32Ty(context));
+    auto* alloca = CreateEntryAlloca(fn, node->data.arguments[idx].name,
+                                     GetLLVMType(node->data.arguments[idx].type));
     builder.CreateStore(&arg, alloca);
-    scopes.back()[node->arguments[idx].first] = {alloca, "int"};
+    scopes.back()[node->data.arguments[idx].name] = {alloca, node->data.arguments[idx].type};
     idx++;
   }
 
-  node->body->Accept(*this);
+  node->data.body->Accept(*this);
 
   if (!builder.GetInsertBlock()->getTerminator()) {
-    if (node->return_type == "void") builder.CreateRetVoid();
+    if (node->data.return_type.kind == TypeKind::VOID) builder.CreateRetVoid();
     else builder.CreateRet(llvm::ConstantInt::get(context, llvm::APInt(32, 0)));
   }
 

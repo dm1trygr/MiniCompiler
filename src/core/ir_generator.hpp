@@ -9,11 +9,12 @@
 #include <unordered_map>
 #include <vector>
 
+#include "types.hpp"
 #include "visitors.hpp"
 
 struct IrVarInfo {
   llvm::AllocaInst* alloca_inst;
-  std::string type_name;
+  Type type;
 };
 
 class IrGenerator : public Visitor {
@@ -67,4 +68,5 @@ class IrGenerator : public Visitor {
                     const std::string& field_name);
   llvm::Value* GetFieldPtr(const std::string& obj_name,
                            const std::string& field_name);
+  llvm::Type* GetLLVMType(const Type& type);
 };

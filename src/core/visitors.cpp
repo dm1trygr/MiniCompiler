@@ -300,7 +300,7 @@ const ClassInfo* SemanticAnalyzer::ResolveClassOfVar(const std::string& var_name
   if (!var) {
     throw std::runtime_error("Undeclared variable '" + var_name + "'");
   }
-  auto it = global_sym_table.classes.find(var->type.GetClassName());
+  auto it = global_sym_table.classes.find(var->type.class_name);
   if (it == global_sym_table.classes.end()) {
     throw std::runtime_error("Variable '" + var_name + "' is not of class type");
   }

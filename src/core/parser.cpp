@@ -263,13 +263,11 @@ std::unique_ptr<Expression> Parser::ParsePrimary() {
   if (Peek().type == TokenType::ID) {
     std::string name = Consume().value;
 
-    // Check for obj.field or obj.method()
     if (Peek().type == TokenType::DOT) {
       Consume();
       std::string member = Consume().value;
 
       if (Peek().type == TokenType::LPAREN) {
-        // obj.method(args)
         Consume();
         auto args = ParseArgumentList();
         Expect(TokenType::RPAREN, "Expected ')'");
@@ -277,7 +275,6 @@ std::unique_ptr<Expression> Parser::ParsePrimary() {
                                                       std::move(args));
       }
 
-      // obj.field
       return std::make_unique<FieldAccessExpression>(name, member);
     }
 

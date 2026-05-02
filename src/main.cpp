@@ -7,6 +7,19 @@
 int main() {
   // Here is code demonstration
   std::string code = R"(
+        class Example {
+            declare value: int;
+            declare result: int;
+
+            method add(a: int): int {
+                return a + value;
+            }
+
+            method multiply(a: int): int {
+                return a * value;
+            }
+        }
+
         declare x: int;
         x = 0;
 

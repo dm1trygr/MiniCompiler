@@ -26,6 +26,7 @@ class IrGenerator : public Visitor {
   void Visit(BinaryExpression* node) override;
   void Visit(FieldAccessExpression* node) override;
   void Visit(MethodCallExpression* node) override;
+  void Visit(FunctionCallExpression* node) override;
 
   void Visit(DeclareStatement* node) override;
   void Visit(AssignStatement* node) override;
@@ -52,6 +53,7 @@ class IrGenerator : public Visitor {
   llvm::Value* last_value = nullptr;
   llvm::Function* current_function = nullptr;
   std::string current_class_name;
+  llvm::Value* current_this_ptr = nullptr;
 
   std::vector<std::unordered_map<std::string, IrVarInfo>> scopes;
   std::unordered_map<std::string, llvm::StructType*> class_types;

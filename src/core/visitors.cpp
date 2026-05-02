@@ -46,6 +46,16 @@ void PrintVisitor::Visit(MethodCallExpression* node) {
   depth--;
 }
 
+void PrintVisitor::Visit(FunctionCallExpression* node) {
+  PrintIndent();
+  out << "FunctionCall: " << node->function_name << "()\n";
+  depth++;
+  for (auto& arg : node->arguments) {
+    arg->Accept(*this);
+  }
+  depth--;
+}
+
 void PrintVisitor::Visit(DeclareStatement* node) {
   PrintIndent();
   out << "Declare: " << node->name << " : " << node->type.ToString() << "\n";
@@ -239,6 +249,8 @@ void Interpreter::Visit(FieldAccessExpression*) {}
 
 void Interpreter::Visit(MethodCallExpression*) {}
 
+void Interpreter::Visit(FunctionCallExpression*) {}
+
 void Interpreter::Visit(DeclareStatement* node) { variables[node->name] = 0; }
 
 void Interpreter::Visit(AssignStatement* node) {
@@ -307,26 +319,80 @@ const ClassInfo* SemanticAnalyzer::ResolveClassOfVar(const std::string& var_name
   return &it->second;
 }
 
-void SemanticAnalyzer::Visit(NumberExpression*) {}
+Type SemanticAnalyzer::GetExpressionType(Expression* expr) {
+  if (auto* num = dynamic_cast<NumberExpression*>(expr)) {
+    return Type::Int();
+  } else if (auto* var = dynamic_cast<VarExpression*>(expr)) {
+    if (!current_class_name.empty()) {
+      auto cls_it = global_sym_table.classes.find(current_class_name);
+      if (cls_it != global_sym_table.classes.end()) {
+        auto field_it = cls_it->second.fields.find(var->name);
+        if (field_it != cls_it->second.fields.end()) {
+          return field_it->second.type;
+        }
+      }
+    }
+    VariableInfo* var_info = current_scope->ResolveVariable(var->name);
+    if (!var_info) {
+      throw std::runtime_error("Undeclared variable '" + var->name + "'");
+    }
+    return var_info->type;
+  } else if (auto* field = dynamic_cast<FieldAccessExpression*>(expr)) {
+    const ClassInfo* cls = ResolveClassOfVar(field->object_name);
+    auto it = cls->fields.find(field->field_name);
+    if (it == cls->fields.end()) {
+      throw std::runtime_error("No field '" + field->field_name + "' in class");
+    }
+    return it->second.type;
+  } else if (auto* method_call = dynamic_cast<MethodCallExpression*>(expr)) {
+    const ClassInfo* cls = ResolveClassOfVar(method_call->object_name);
+    auto it = cls->methods.find(method_call->method_name);
+    if (it == cls->methods.end()) {
+      throw std::runtime_error("No method '" + method_call->method_name + "'");
+    }
+    return it->second.return_type;
+  } else if (dynamic_cast<BinaryExpression*>(expr)) {
+    return Type::Int();
+  }
+  return Type::Int();
+}
+
+void SemanticAnalyzer::Visit(NumberExpression*) {
+  last_expr_type = Type::Int();
+}
 
 void SemanticAnalyzer::Visit(VarExpression* node) {
+  if (!current_class_name.empty()) {
+    auto cls_it = global_sym_table.classes.find(current_class_name);
+    if (cls_it != global_sym_table.classes.end()) {
+      auto field_it = cls_it->second.fields.find(node->name);
+      if (field_it != cls_it->second.fields.end()) {
+        last_expr_type = field_it->second.type;
+        return;
+      }
+    }
+  }
   VariableInfo* var = current_scope->ResolveVariable(node->name);
   if (!var) {
     throw std::runtime_error("Use of undeclared variable '" + node->name + "'");
   }
+  last_expr_type = var->type;
 }
 
 void SemanticAnalyzer::Visit(BinaryExpression* node) {
   node->left->Accept(*this);
   node->right->Accept(*this);
+  last_expr_type = Type::Int();
 }
 
 void SemanticAnalyzer::Visit(FieldAccessExpression* node) {
   const ClassInfo* cls = ResolveClassOfVar(node->object_name);
-  if (cls->fields.find(node->field_name) == cls->fields.end()) {
+  auto it = cls->fields.find(node->field_name);
+  if (it == cls->fields.end()) {
     throw std::runtime_error("No field '" + node->field_name + "' in class '" +
                              cls->name + "'");
   }
+  last_expr_type = it->second.type;
 }
 
 void SemanticAnalyzer::Visit(MethodCallExpression* node) {
@@ -340,9 +406,35 @@ void SemanticAnalyzer::Visit(MethodCallExpression* node) {
     throw std::runtime_error("Wrong number of arguments for method '" +
                              node->method_name + "'");
   }
-  for (auto& arg : node->arguments) {
-    arg->Accept(*this);
+  for (size_t i = 0; i < node->arguments.size(); ++i) {
+    node->arguments[i]->Accept(*this);
+    Type arg_type = last_expr_type;
+    if (arg_type != it->second.arguments[i].type) {
+      throw std::runtime_error("Argument type mismatch in method '" +
+                             node->method_name + "'");
+    }
   }
+  last_expr_type = it->second.return_type;
+}
+
+void SemanticAnalyzer::Visit(FunctionCallExpression* node) {
+  auto it = global_sym_table.global_methods.find(node->function_name);
+  if (it == global_sym_table.global_methods.end()) {
+    throw std::runtime_error("No global function '" + node->function_name + "'");
+  }
+  if (node->arguments.size() != it->second.arguments.size()) {
+    throw std::runtime_error("Wrong number of arguments for function '" +
+                             node->function_name + "'");
+  }
+  for (size_t i = 0; i < node->arguments.size(); ++i) {
+    node->arguments[i]->Accept(*this);
+    Type arg_type = last_expr_type;
+    if (arg_type != it->second.arguments[i].type) {
+      throw std::runtime_error("Argument type mismatch in function '" +
+                             node->function_name + "'");
+    }
+  }
+  last_expr_type = it->second.return_type;
 }
 
 void SemanticAnalyzer::Visit(DeclareStatement* node) {
@@ -353,21 +445,42 @@ void SemanticAnalyzer::Visit(DeclareStatement* node) {
 }
 
 void SemanticAnalyzer::Visit(AssignStatement* node) {
+  if (!current_class_name.empty()) {
+    auto cls_it = global_sym_table.classes.find(current_class_name);
+    if (cls_it != global_sym_table.classes.end()) {
+      auto field_it = cls_it->second.fields.find(node->name);
+      if (field_it != cls_it->second.fields.end()) {
+        node->expr->Accept(*this);
+        if (last_expr_type != field_it->second.type) {
+          throw std::runtime_error("Type mismatch in assignment to field '" +
+                                 node->name + "'");
+        }
+        return;
+      }
+    }
+  }
   VariableInfo* var = current_scope->ResolveVariable(node->name);
   if (!var) {
     throw std::runtime_error("Assign to undeclared variable '" + node->name +
                              "'");
   }
   node->expr->Accept(*this);
+  if (last_expr_type != var->type) {
+    throw std::runtime_error("Type mismatch in assignment to '" + node->name + "'");
+  }
 }
 
 void SemanticAnalyzer::Visit(FieldAssignStatement* node) {
   const ClassInfo* cls = ResolveClassOfVar(node->object_name);
-  if (cls->fields.find(node->field_name) == cls->fields.end()) {
+  auto it = cls->fields.find(node->field_name);
+  if (it == cls->fields.end()) {
     throw std::runtime_error("No field '" + node->field_name + "' in class '" +
                              cls->name + "'");
   }
   node->expr->Accept(*this);
+  if (last_expr_type != it->second.type) {
+    throw std::runtime_error("Type mismatch in field assignment");
+  }
 }
 
 void SemanticAnalyzer::Visit(ExpressionStatement* node) {
@@ -416,6 +529,13 @@ void SemanticAnalyzer::Visit(ClassDeclarationStatement* node) {
                                "' already declared in class '" + node->name +
                                "'");
     }
+    if (field->type.kind == TypeKind::CLASS) {
+      if (global_sym_table.classes.find(field->type.class_name) ==
+          global_sym_table.classes.end()) {
+        throw std::runtime_error("Unknown class type '" + field->type.class_name +
+                               "' for field '" + field->name + "'");
+      }
+    }
     fields[field->name] = {field->name, field->type};
   }
 
@@ -436,6 +556,8 @@ void SemanticAnalyzer::Visit(ClassDeclarationStatement* node) {
                                              std::move(methods)));
 
   current_scope = current_scope->CreateChildScope();
+  std::string prev_class = current_class_name;
+  current_class_name = node->name;
 
   for (auto& field : node->fields) {
     current_scope->DeclareVariable(field->name, field->type);
@@ -445,10 +567,22 @@ void SemanticAnalyzer::Visit(ClassDeclarationStatement* node) {
     method->Accept(*this);
   }
 
+  current_class_name = prev_class;
   current_scope = current_scope->parent;
 }
 
 void SemanticAnalyzer::Visit(MethodDeclarationStatement* node) {
+  if (current_class_name.empty()) {
+    if (global_sym_table.global_methods.find(node->data.name) !=
+        global_sym_table.global_methods.end()) {
+      throw std::runtime_error("Global method '" + node->data.name +
+                             "' already declared");
+    }
+    global_sym_table.global_methods.emplace(node->data.name,
+                      MethodInfo(node->data.name, node->data.return_type,
+                                 node->data.arguments));
+  }
+
   current_scope = current_scope->CreateChildScope();
 
   bool prev_in_method = in_method;
@@ -457,12 +591,40 @@ void SemanticAnalyzer::Visit(MethodDeclarationStatement* node) {
   current_return_type = node->data.return_type;
 
   for (auto& arg : node->data.arguments) {
+    if (arg.type.kind == TypeKind::CLASS) {
+      if (global_sym_table.classes.find(arg.type.class_name) ==
+          global_sym_table.classes.end()) {
+        throw std::runtime_error("Unknown class type '" + arg.type.class_name +
+                               "' for parameter '" + arg.name + "'");
+      }
+    }
     if (!current_scope->DeclareVariable(arg.name, arg.type)) {
       throw std::runtime_error("Duplicate argument name '" + arg.name + "'");
     }
   }
 
+  if (node->data.return_type.kind == TypeKind::CLASS) {
+    if (global_sym_table.classes.find(node->data.return_type.class_name) ==
+        global_sym_table.classes.end()) {
+      throw std::runtime_error("Unknown class type '" +
+                             node->data.return_type.class_name +
+                             "' for return type");
+    }
+  }
+
   node->data.body->Accept(*this);
+
+  if (node->data.return_type.kind != TypeKind::VOID) {
+    bool has_return = false;
+    if (!node->data.body->statements.empty()) {
+      auto* last_stmt = node->data.body->statements.back().get();
+      has_return = dynamic_cast<ReturnStatement*>(last_stmt) != nullptr;
+    }
+    if (!has_return) {
+      throw std::runtime_error("Non-void method '" + node->data.name +
+                             "' must end with a return statement");
+    }
+  }
 
   in_method = prev_in_method;
   current_return_type = prev_return_type;
@@ -483,5 +645,10 @@ void SemanticAnalyzer::Visit(ReturnStatement* node) {
       throw std::runtime_error("Non-void method must return a value");
     }
     node->expr->Accept(*this);
+    if (last_expr_type != current_return_type) {
+      throw std::runtime_error("Return type mismatch: expected " +
+                             current_return_type.ToString() + ", got " +
+                             last_expr_type.ToString());
+    }
   }
 }

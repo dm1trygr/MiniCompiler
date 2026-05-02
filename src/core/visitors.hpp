@@ -17,6 +17,7 @@ class Visitor {
   virtual void Visit(BinaryExpression* node) = 0;
   virtual void Visit(FieldAccessExpression* node) = 0;
   virtual void Visit(MethodCallExpression* node) = 0;
+  virtual void Visit(FunctionCallExpression* node) = 0;
 
   virtual void Visit(DeclareStatement* node) = 0;
   virtual void Visit(AssignStatement* node) = 0;
@@ -42,6 +43,7 @@ class PrintVisitor : public Visitor {
   void Visit(BinaryExpression* node) override;
   void Visit(FieldAccessExpression* node) override;
   void Visit(MethodCallExpression* node) override;
+  void Visit(FunctionCallExpression* node) override;
 
   void Visit(DeclareStatement* node) override;
   void Visit(AssignStatement* node) override;
@@ -70,6 +72,7 @@ class Interpreter : public Visitor {
   void Visit(BinaryExpression* node) override;
   void Visit(FieldAccessExpression* node) override;
   void Visit(MethodCallExpression* node) override;
+  void Visit(FunctionCallExpression* node) override;
 
   void Visit(DeclareStatement* node) override;
   void Visit(AssignStatement* node) override;
@@ -101,6 +104,7 @@ class SemanticAnalyzer : public Visitor {
   void Visit(BinaryExpression* node) override;
   void Visit(FieldAccessExpression* node) override;
   void Visit(MethodCallExpression* node) override;
+  void Visit(FunctionCallExpression* node) override;
 
   void Visit(DeclareStatement* node) override;
   void Visit(AssignStatement* node) override;
@@ -121,6 +125,9 @@ class SemanticAnalyzer : public Visitor {
   Scope* current_scope;
   bool in_method = false;
   Type current_return_type;
+  Type last_expr_type;
+  std::string current_class_name;
 
   const ClassInfo* ResolveClassOfVar(const std::string& var_name);
+  Type GetExpressionType(Expression* expr);
 };

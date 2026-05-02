@@ -64,3 +64,15 @@ class MethodCallExpression : public Expression {
   std::string method_name;
   std::vector<std::unique_ptr<Expression>> arguments;
 };
+
+class FunctionCallExpression : public Expression {
+ public:
+  FunctionCallExpression(const std::string& func,
+                         std::vector<std::unique_ptr<Expression>> args)
+      : function_name(func), arguments(std::move(args)) {}
+  void Accept(Visitor& visitor) override;
+
+ public:
+  std::string function_name;
+  std::vector<std::unique_ptr<Expression>> arguments;
+};

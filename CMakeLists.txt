@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.16)
 project(Compiler LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_DISABLE_FIND_PACKAGE_LibEdit TRUE)
 
 find_package(LLVM REQUIRED CONFIG)
 include_directories(${LLVM_INCLUDE_DIRS})

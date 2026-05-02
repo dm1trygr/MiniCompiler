@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "core/ir_generator.hpp"
 #include "core/parser.hpp"
 #include "core/visitors.hpp"
 
@@ -36,11 +37,10 @@ int main(int argc, char** argv) {
     ast->Accept(analyzer);
     std::cout << "Semantic analysis passed\n";
 
-    // TODO: IR Generator will be implemented later
-    // IrGenerator gen(argv[1]);
-    // gen.GenerateMain(ast.get());
-    // gen.SaveToFile("output.ll");
-    // std::cout << "IR saved to output.ll\n";
+    IrGenerator generator("main_module");
+    generator.GenerateMain(ast.get());
+    generator.SaveToFile("output.ll");
+    std::cout << "IR saved to output.ll\n";
 
   } catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << "\n";

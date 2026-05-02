@@ -77,7 +77,7 @@ llvm::Value* IrGenerator::GetFieldPtr(const std::string& obj_name,
                                  obj_name + "." + field_name + ".ptr");
 }
 
-void IrGenerator::GenerateMain(BlockStatement* program) {
+void IrGenerator::GenerateClassesAndMethods(BlockStatement* program) {
   for (auto& stmt : program->statements) {
     if (dynamic_cast<ClassDeclarationStatement*>(stmt.get())) {
       stmt->Accept(*this);
@@ -85,10 +85,14 @@ void IrGenerator::GenerateMain(BlockStatement* program) {
   }
 
   for (auto& stmt : program->statements) {
-    if (auto* method = dynamic_cast<MethodDeclarationStatement*>(stmt.get())) {
+    if (dynamic_cast<MethodDeclarationStatement*>(stmt.get())) {
       stmt->Accept(*this);
     }
   }
+}
+
+void IrGenerator::GenerateMain(BlockStatement* program) {
+  GenerateClassesAndMethods(program);
 
   auto* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context),
                                             false);
@@ -99,26 +103,14 @@ void IrGenerator::GenerateMain(BlockStatement* program) {
   builder.SetInsertPoint(entry);
   current_function = main_fn;
 
-  PushScope();
-
-  for (auto& stmt : program->statements) {
-    if (!dynamic_cast<ClassDeclarationStatement*>(stmt.get()) &&
-        !dynamic_cast<MethodDeclarationStatement*>(stmt.get())) {
-      stmt->Accept(*this);
-      if (builder.GetInsertBlock()->getTerminator()) break;
-    }
-  }
+  program->Accept(*this);
 
   if (!builder.GetInsertBlock()->getTerminator()) {
     builder.CreateRet(llvm::ConstantInt::get(context, llvm::APInt(32, 0)));
   }
-
-  PopScope();
   current_function = nullptr;
   llvm::verifyModule(*module, &llvm::errs());
 }
-
-void IrGenerator::DumpIr() const { module->print(llvm::outs(), nullptr); }
 
 void IrGenerator::SaveToFile(const std::string& filename) const {
   std::error_code ec;
@@ -249,9 +241,7 @@ void IrGenerator::Visit(DeclareStatement* node) {
 }
 
 void IrGenerator::Visit(AssignStatement* node) {
-  // First check if this is a field assignment in a method context
   if (current_this_ptr && !LookupVariable(node->name)) {
-    // Try to assign to a field of 'this'
     llvm::StructType* st = class_types[current_class_name];
     int idx = GetFieldIndex(current_class_name, node->name);
     llvm::Value* field_ptr = builder.CreateStructGEP(st, current_this_ptr, idx,
@@ -287,8 +277,11 @@ void IrGenerator::Visit(PrintStatement* node) {
 void IrGenerator::Visit(BlockStatement* node) {
   PushScope();
   for (auto& stmt : node->statements) {
-    stmt->Accept(*this);
-    if (builder.GetInsertBlock()->getTerminator()) break;
+    if (!dynamic_cast<ClassDeclarationStatement*>(stmt.get()) &&
+        !dynamic_cast<MethodDeclarationStatement*>(stmt.get())) {
+      stmt->Accept(*this);
+      if (builder.GetInsertBlock()->getTerminator()) break;
+    }
   }
   PopScope();
 }
@@ -371,7 +364,6 @@ void IrGenerator::Visit(MethodDeclarationStatement* node) {
 
   std::vector<llvm::Type*> arg_types;
 
-  // Add implicit 'this' parameter for methods
   if (!current_class_name.empty()) {
     llvm::StructType* st = class_types[current_class_name];
     arg_types.push_back(llvm::PointerType::get(st, 0));
@@ -389,13 +381,11 @@ void IrGenerator::Visit(MethodDeclarationStatement* node) {
 
   auto arg_it = fn->args().begin();
 
-  // Set name for 'this' parameter
   if (!current_class_name.empty()) {
     arg_it->setName("this");
     ++arg_it;
   }
 
-  // Set names for regular parameters
   for (size_t idx = 0; idx < node->data.arguments.size(); ++idx, ++arg_it) {
     arg_it->setName(node->data.arguments[idx].name);
   }

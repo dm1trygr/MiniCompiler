@@ -42,7 +42,6 @@ class IrGenerator : public Visitor {
   void Visit(ReturnStatement* node) override;
 
   void GenerateMain(BlockStatement* program);
-  void DumpIr() const;
   void SaveToFile(const std::string& filename) const;
 
  private:
@@ -59,6 +58,7 @@ class IrGenerator : public Visitor {
   std::unordered_map<std::string, llvm::StructType*> class_types;
   std::unordered_map<std::string, std::vector<std::string>> class_field_order;
 
+  void GenerateClassesAndMethods(BlockStatement* program);
   void PushScope();
   void PopScope();
   IrVarInfo* LookupVariable(const std::string& name);

@@ -25,10 +25,12 @@ Comparison ::= Additive ("==" Additive)?;
 Additive ::= Multiplicative (("+" | "-") Multiplicative)*;
 Multiplicative ::= Primary (("*" | "/") Primary)*;
 Primary ::= IntLiteral | Identifier | "(" Expression ")";
-Type ::= "int" | "void";
+Type ::= "int" | "void" | Identifier;
 Identifier ::= [a-zA-Z_][a-zA-Z0-9_]*;
 IntLiteral ::= [0-9]+;
 ```
+
+**Важно**: В текущей итерации классы и методы интерпретатором игнорируются (но вообще распознаются парсером и лексером, через семантический анализ тоже проходят) - об этом повторно указано в разделе "Что поддерживается"
 
 ## Что поддерживается
 

@@ -5,6 +5,19 @@ class Point {
   method Sum(a: int, b: int): int {
     return a + b;
   }
+
+  method AddPoint(other: Point): void {
+    declare sum: Point;
+    x = x + other.x;
+    y = y + other.y;
+  }
+}
+
+method GetSum(a: Point, b: Point) : Point {
+    declare sum: Point;
+    sum.x = a.x + b.x;
+    sum.y = a.y + b.y;
+    return sum;
 }
 
 declare p: Point;
@@ -14,3 +27,18 @@ p.y = 20;
 print(p.x);
 print(p.y);
 print(p.Sum(p.x, p.y));
+
+declare q: Point;
+q.x = 30;
+q.y = 40;
+
+declare s: Point;
+s = GetSum(p, q);
+
+print(s.x);
+print(s.y);
+
+q.AddPoint(p);
+
+print(q.x);
+print(q.y);

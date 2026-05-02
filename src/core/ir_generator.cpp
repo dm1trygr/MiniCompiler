@@ -85,6 +85,12 @@ void IrGenerator::GenerateMain(BlockStatement* program) {
     }
   }
 
+  for (auto& stmt : program->statements) {
+    if (auto* method = dynamic_cast<MethodDeclarationStatement*>(stmt.get())) {
+      stmt->Accept(*this);
+    }
+  }
+
   auto* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context),
                                             false);
   auto* main_fn = llvm::Function::Create(
@@ -97,7 +103,8 @@ void IrGenerator::GenerateMain(BlockStatement* program) {
   PushScope();
 
   for (auto& stmt : program->statements) {
-    if (!dynamic_cast<ClassDeclarationStatement*>(stmt.get())) {
+    if (!dynamic_cast<ClassDeclarationStatement*>(stmt.get()) &&
+        !dynamic_cast<MethodDeclarationStatement*>(stmt.get())) {
       stmt->Accept(*this);
       if (builder.GetInsertBlock()->getTerminator()) break;
     }
@@ -126,10 +133,21 @@ void IrGenerator::Visit(NumberExpression* node) {
 }
 
 void IrGenerator::Visit(VarExpression* node) {
+  if (current_this_ptr && !LookupVariable(node->name)) {
+    llvm::StructType* st = class_types[current_class_name];
+    int idx = GetFieldIndex(current_class_name, node->name);
+    llvm::Value* field_ptr = builder.CreateStructGEP(st, current_this_ptr, idx,
+                                                      "this." + node->name + ".ptr");
+    llvm::Type* field_type = st->getElementType(idx);
+    last_value = builder.CreateLoad(field_type, field_ptr,
+                                    "this." + node->name);
+    return;
+  }
+
   IrVarInfo* info = LookupVariable(node->name);
   if (!info) throw std::runtime_error("IR: undeclared '" + node->name + "'");
-  last_value = builder.CreateLoad(llvm::Type::getInt32Ty(context),
-                                  info->alloca_inst, node->name);
+  llvm::Type* var_type = GetLLVMType(info->type);
+  last_value = builder.CreateLoad(var_type, info->alloca_inst, node->name);
 }
 
 void IrGenerator::Visit(BinaryExpression* node) {
@@ -159,8 +177,16 @@ void IrGenerator::Visit(BinaryExpression* node) {
 }
 
 void IrGenerator::Visit(FieldAccessExpression* node) {
-  llvm::Value* ptr = GetFieldPtr(node->object_name, node->field_name);
-  last_value = builder.CreateLoad(llvm::Type::getInt32Ty(context), ptr,
+  IrVarInfo* info = LookupVariable(node->object_name);
+  if (!info) throw std::runtime_error("IR: undeclared '" + node->object_name + "'");
+
+  llvm::StructType* st = class_types[info->type.class_name];
+  int idx = GetFieldIndex(info->type.class_name, node->field_name);
+
+  llvm::Value* ptr = builder.CreateStructGEP(st, info->alloca_inst, idx,
+                                             node->object_name + "." + node->field_name + ".ptr");
+  llvm::Type* field_type = st->getElementType(idx);
+  last_value = builder.CreateLoad(field_type, ptr,
                                   node->object_name + "." + node->field_name);
 }
 
@@ -171,6 +197,26 @@ void IrGenerator::Visit(MethodCallExpression* node) {
   std::string fn_name = info->type.class_name + "." + node->method_name;
   llvm::Function* fn = module->getFunction(fn_name);
   if (!fn) throw std::runtime_error("IR: no function '" + fn_name + "'");
+
+  std::vector<llvm::Value*> args;
+  args.push_back(info->alloca_inst);
+
+  for (auto& arg : node->arguments) {
+    arg->Accept(*this);
+    args.push_back(last_value);
+  }
+
+  if (fn->getReturnType()->isVoidTy()) {
+    builder.CreateCall(fn, args);
+    last_value = nullptr;
+  } else {
+    last_value = builder.CreateCall(fn, args, "call");
+  }
+}
+
+void IrGenerator::Visit(FunctionCallExpression* node) {
+  llvm::Function* fn = module->getFunction(node->function_name);
+  if (!fn) throw std::runtime_error("IR: no function '" + node->function_name + "'");
 
   std::vector<llvm::Value*> args;
   for (auto& arg : node->arguments) {
@@ -204,6 +250,18 @@ void IrGenerator::Visit(DeclareStatement* node) {
 }
 
 void IrGenerator::Visit(AssignStatement* node) {
+  // First check if this is a field assignment in a method context
+  if (current_this_ptr && !LookupVariable(node->name)) {
+    // Try to assign to a field of 'this'
+    llvm::StructType* st = class_types[current_class_name];
+    int idx = GetFieldIndex(current_class_name, node->name);
+    llvm::Value* field_ptr = builder.CreateStructGEP(st, current_this_ptr, idx,
+                                                      "this." + node->name + ".ptr");
+    node->expr->Accept(*this);
+    builder.CreateStore(last_value, field_ptr);
+    return;
+  }
+
   IrVarInfo* info = LookupVariable(node->name);
   if (!info) throw std::runtime_error("IR: undeclared '" + node->name + "'");
   node->expr->Accept(*this);
@@ -313,6 +371,13 @@ void IrGenerator::Visit(MethodDeclarationStatement* node) {
                             : current_class_name + "." + node->data.name;
 
   std::vector<llvm::Type*> arg_types;
+
+  // Add implicit 'this' parameter for methods
+  if (!current_class_name.empty()) {
+    llvm::StructType* st = class_types[current_class_name];
+    arg_types.push_back(llvm::PointerType::get(st, 0));
+  }
+
   for (size_t i = 0; i < node->data.arguments.size(); ++i) {
     arg_types.push_back(GetLLVMType(node->data.arguments[i].type));
   }
@@ -323,8 +388,18 @@ void IrGenerator::Visit(MethodDeclarationStatement* node) {
   auto* fn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage,
                                     fn_name, module.get());
 
-  size_t idx = 0;
-  for (auto& arg : fn->args()) arg.setName(node->data.arguments[idx++].name);
+  auto arg_it = fn->args().begin();
+
+  // Set name for 'this' parameter
+  if (!current_class_name.empty()) {
+    arg_it->setName("this");
+    ++arg_it;
+  }
+
+  // Set names for regular parameters
+  for (size_t idx = 0; idx < node->data.arguments.size(); ++idx, ++arg_it) {
+    arg_it->setName(node->data.arguments[idx].name);
+  }
 
   auto* entry = llvm::BasicBlock::Create(context, "entry", fn);
   builder.SetInsertPoint(entry);
@@ -332,13 +407,21 @@ void IrGenerator::Visit(MethodDeclarationStatement* node) {
 
   PushScope();
 
-  idx = 0;
-  for (auto& arg : fn->args()) {
+  arg_it = fn->args().begin();
+
+  if (!current_class_name.empty()) {
+    llvm::StructType* st = class_types[current_class_name];
+    llvm::AllocaInst* this_alloca = CreateEntryAlloca(fn, "this.addr", llvm::PointerType::get(st, 0));
+    builder.CreateStore(&(*arg_it), this_alloca);
+    current_this_ptr = builder.CreateLoad(llvm::PointerType::get(st, 0), this_alloca, "this");
+    ++arg_it;
+  }
+
+  for (size_t idx = 0; idx < node->data.arguments.size(); ++idx, ++arg_it) {
     auto* alloca = CreateEntryAlloca(fn, node->data.arguments[idx].name,
                                      GetLLVMType(node->data.arguments[idx].type));
-    builder.CreateStore(&arg, alloca);
+    builder.CreateStore(&(*arg_it), alloca);
     scopes.back()[node->data.arguments[idx].name] = {alloca, node->data.arguments[idx].type};
-    idx++;
   }
 
   node->data.body->Accept(*this);
@@ -349,6 +432,7 @@ void IrGenerator::Visit(MethodDeclarationStatement* node) {
   }
 
   PopScope();
+  current_this_ptr = nullptr;
   llvm::verifyFunction(*fn, &llvm::errs());
 }
 

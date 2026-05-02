@@ -14,6 +14,9 @@ std::unique_ptr<Statement> Parser::ParseStatement() {
   if (Peek().type == TokenType::CLASS) {
     return ParseClassDeclaration();
   }
+  if (Peek().type == TokenType::METHOD) {
+    return ParseMethodDeclaration();
+  }
   if (Peek().type == TokenType::RETURN) {
     return ParseReturnStatement();
   }
@@ -57,13 +60,11 @@ std::unique_ptr<Statement> Parser::ParseDeclareStatement() {
 std::unique_ptr<Statement> Parser::ParseAssignStatement() {
   std::string name = Consume().value;
 
-  // Check for obj.field or obj.method()
   if (Peek().type == TokenType::DOT) {
     Consume();
     std::string member = Consume().value;
 
     if (Peek().type == TokenType::LPAREN) {
-      // obj.method(args);
       Consume();
       auto args = ParseArgumentList();
       Expect(TokenType::RPAREN, "Expected ')'");
@@ -73,7 +74,6 @@ std::unique_ptr<Statement> Parser::ParseAssignStatement() {
       return std::make_unique<ExpressionStatement>(std::move(call));
     }
 
-    // obj.field = expr;
     Expect(TokenType::ASSIGN, "Expected '='");
     auto expr = ParseExpression();
     Expect(TokenType::SEMICOLON, "Expected ';'");
@@ -81,7 +81,6 @@ std::unique_ptr<Statement> Parser::ParseAssignStatement() {
                                                   std::move(expr));
   }
 
-  // Regular assignment: var = expr;
   Expect(TokenType::ASSIGN, "Expected '='");
   auto expr = ParseExpression();
   Expect(TokenType::SEMICOLON, "Expected ';'");
@@ -276,6 +275,13 @@ std::unique_ptr<Expression> Parser::ParsePrimary() {
       }
 
       return std::make_unique<FieldAccessExpression>(name, member);
+    }
+
+    if (Peek().type == TokenType::LPAREN) {
+      Consume();
+      auto args = ParseArgumentList();
+      Expect(TokenType::RPAREN, "Expected ')'");
+      return std::make_unique<FunctionCallExpression>(name, std::move(args));
     }
 
     return std::make_unique<VarExpression>(name);

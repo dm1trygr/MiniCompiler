@@ -1,7 +1,7 @@
 #include "symtable.hpp"
 
 bool Scope::DeclareVariable(const std::string& name, const Type& type) {
-  if (local_variables.find(name) != local_variables.end()) {
+  if (local_variables.contains(name)) {
     return false;
   }
   local_variables[name] = {name, type};

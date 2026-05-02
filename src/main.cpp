@@ -9,7 +9,6 @@ int main() {
   std::string code = R"(
         class Example {
             declare value: int;
-            declare result: int;
 
             method add(a: int): int {
                 return a + value;

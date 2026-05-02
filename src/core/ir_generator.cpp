@@ -18,9 +18,8 @@ llvm::Type* IrGenerator::GetLLVMType(const Type& type) {
   } else if (type.kind == TypeKind::VOID) {
     return llvm::Type::getVoidTy(context);
   } else if (type.kind == TypeKind::CLASS) {
-    auto it = class_types.find(type.class_name);
-    if (it != class_types.end()) {
-      return it->second;
+    if (class_types.contains(type.class_name)) {
+      return class_types[type.class_name];
     }
     throw std::runtime_error("Unknown class type: " + type.class_name);
   }

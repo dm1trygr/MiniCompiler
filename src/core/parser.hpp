@@ -37,10 +37,10 @@ class Parser {
   std::vector<std::unique_ptr<Expression>> ParseArgumentList();
 
   std::unique_ptr<Statement> ParseMemberAccess(const std::string& object_name);
-  std::unique_ptr<Statement> ParseMethodCallStatement(const std::string& object_name,
-                                                       const std::string& method_name);
-  std::unique_ptr<Statement> ParseFieldAssignment(const std::string& object_name,
-                                                   const std::string& field_name);
+  std::unique_ptr<Statement> ParseMethodCallStatement(
+      const std::string& object_name, const std::string& method_name);
+  std::unique_ptr<Statement> ParseFieldAssignment(
+      const std::string& object_name, const std::string& field_name);
 
   Token Peek();
   Token Consume();

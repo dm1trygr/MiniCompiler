@@ -8,9 +8,13 @@
 
 #include "operators.hpp"
 
-IrGenerator::IrGenerator(const std::string& module_name)
+IrGenerator::IrGenerator(const std::string& module_name, Scope* root_scope,
+                         GlobalSymbolTable& global_sym_table)
     : module(std::make_unique<llvm::Module>(module_name, context)),
-      builder(context) {}
+      builder(context),
+      root_scope(root_scope),
+      current_scope(root_scope),
+      global_sym_table(global_sym_table) {}
 
 llvm::Type* IrGenerator::GetLLVMType(const Type& type) {
   if (type.kind == TypeKind::INT) {
@@ -26,21 +30,30 @@ llvm::Type* IrGenerator::GetLLVMType(const Type& type) {
   throw std::runtime_error("Unknown type");
 }
 
-void IrGenerator::PushScope() { scopes.emplace_back(); }
+void IrGenerator::EnterScope(Scope* scope) { current_scope = scope; }
 
-void IrGenerator::PopScope() { scopes.pop_back(); }
+void IrGenerator::ExitScope() {
+  if (current_scope->parent) {
+    current_scope = current_scope->parent;
+  }
+}
 
 IrVarInfo* IrGenerator::LookupVariable(const std::string& name) {
-  for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
-    auto found = it->find(name);
-    if (found != it->end()) return &found->second;
+  Scope* scope = current_scope;
+  while (scope) {
+    auto& scope_vars = scope_ir_vars[scope];
+    auto found = scope_vars.find(name);
+    if (found != scope_vars.end()) {
+      return &found->second;
+    }
+    scope = scope->parent;
   }
   return nullptr;
 }
 
 llvm::AllocaInst* IrGenerator::CreateEntryAlloca(llvm::Function* fn,
-                                                  const std::string& name,
-                                                  llvm::Type* type) {
+                                                 const std::string& name,
+                                                 llvm::Type* type) {
   llvm::IRBuilder<> tmp(&fn->getEntryBlock(), fn->getEntryBlock().begin());
   return tmp.CreateAlloca(type, nullptr, name);
 }
@@ -51,8 +64,8 @@ llvm::Function* IrGenerator::GetOrDeclarePrintf() {
   auto* type = llvm::FunctionType::get(
       llvm::Type::getInt32Ty(context),
       {llvm::PointerType::getUnqual(llvm::Type::getInt8Ty(context))}, true);
-  return llvm::Function::Create(type, llvm::Function::ExternalLinkage,
-                                "printf", module.get());
+  return llvm::Function::Create(type, llvm::Function::ExternalLinkage, "printf",
+                                module.get());
 }
 
 int IrGenerator::GetFieldIndex(const std::string& class_name,
@@ -94,8 +107,8 @@ void IrGenerator::GenerateClassesAndMethods(BlockStatement* program) {
 void IrGenerator::GenerateMain(BlockStatement* program) {
   GenerateClassesAndMethods(program);
 
-  auto* main_type = llvm::FunctionType::get(llvm::Type::getInt32Ty(context),
-                                            false);
+  auto* main_type =
+      llvm::FunctionType::get(llvm::Type::getInt32Ty(context), false);
   auto* main_fn = llvm::Function::Create(
       main_type, llvm::Function::ExternalLinkage, "main", module.get());
 
@@ -120,18 +133,19 @@ void IrGenerator::SaveToFile(const std::string& filename) const {
 }
 
 void IrGenerator::Visit(NumberExpression* node) {
-  last_value = llvm::ConstantInt::get(context, llvm::APInt(32, node->value, true));
+  last_value =
+      llvm::ConstantInt::get(context, llvm::APInt(32, node->value, true));
 }
 
 void IrGenerator::Visit(VarExpression* node) {
   if (current_this_ptr && !LookupVariable(node->name)) {
     llvm::StructType* st = class_types[current_class_name];
     int idx = GetFieldIndex(current_class_name, node->name);
-    llvm::Value* field_ptr = builder.CreateStructGEP(st, current_this_ptr, idx,
-                                                      "this." + node->name + ".ptr");
+    llvm::Value* field_ptr = builder.CreateStructGEP(
+        st, current_this_ptr, idx, "this." + node->name + ".ptr");
     llvm::Type* field_type = st->getElementType(idx);
-    last_value = builder.CreateLoad(field_type, field_ptr,
-                                    "this." + node->name);
+    last_value =
+        builder.CreateLoad(field_type, field_ptr, "this." + node->name);
     return;
   }
 
@@ -162,20 +176,23 @@ void IrGenerator::Visit(BinaryExpression* node) {
       break;
     case BinaryOperator::EQUAL:
       auto* cmp = builder.CreateICmpEQ(l, r, "eq");
-      last_value = builder.CreateZExt(cmp, llvm::Type::getInt32Ty(context), "eqext");
+      last_value =
+          builder.CreateZExt(cmp, llvm::Type::getInt32Ty(context), "eqext");
       break;
   }
 }
 
 void IrGenerator::Visit(FieldAccessExpression* node) {
   IrVarInfo* info = LookupVariable(node->object_name);
-  if (!info) throw std::runtime_error("IR: undeclared '" + node->object_name + "'");
+  if (!info)
+    throw std::runtime_error("IR: undeclared '" + node->object_name + "'");
 
   llvm::StructType* st = class_types[info->type.class_name];
   int idx = GetFieldIndex(info->type.class_name, node->field_name);
 
-  llvm::Value* ptr = builder.CreateStructGEP(st, info->alloca_inst, idx,
-                                             node->object_name + "." + node->field_name + ".ptr");
+  llvm::Value* ptr = builder.CreateStructGEP(
+      st, info->alloca_inst, idx,
+      node->object_name + "." + node->field_name + ".ptr");
   llvm::Type* field_type = st->getElementType(idx);
   last_value = builder.CreateLoad(field_type, ptr,
                                   node->object_name + "." + node->field_name);
@@ -183,7 +200,8 @@ void IrGenerator::Visit(FieldAccessExpression* node) {
 
 void IrGenerator::Visit(MethodCallExpression* node) {
   IrVarInfo* info = LookupVariable(node->object_name);
-  if (!info) throw std::runtime_error("IR: undeclared '" + node->object_name + "'");
+  if (!info)
+    throw std::runtime_error("IR: undeclared '" + node->object_name + "'");
 
   std::string fn_name = info->type.class_name + "." + node->method_name;
   llvm::Function* fn = module->getFunction(fn_name);
@@ -207,7 +225,8 @@ void IrGenerator::Visit(MethodCallExpression* node) {
 
 void IrGenerator::Visit(FunctionCallExpression* node) {
   llvm::Function* fn = module->getFunction(node->function_name);
-  if (!fn) throw std::runtime_error("IR: no function '" + node->function_name + "'");
+  if (!fn)
+    throw std::runtime_error("IR: no function '" + node->function_name + "'");
 
   std::vector<llvm::Value*> args;
   for (auto& arg : node->arguments) {
@@ -226,17 +245,17 @@ void IrGenerator::Visit(FunctionCallExpression* node) {
 void IrGenerator::Visit(DeclareStatement* node) {
   if (node->type.kind == TypeKind::CLASS) {
     llvm::StructType* st = class_types[node->type.class_name];
-    llvm::AllocaInst* alloca = CreateEntryAlloca(current_function, node->name, st);
+    llvm::AllocaInst* alloca =
+        CreateEntryAlloca(current_function, node->name, st);
     auto zero = llvm::ConstantAggregateZero::get(st);
     builder.CreateStore(zero, alloca);
-    scopes.back()[node->name] = {alloca, node->type};
+    scope_ir_vars[current_scope][node->name] = {alloca, node->type};
   } else {
-    llvm::AllocaInst* alloca =
-        CreateEntryAlloca(current_function, node->name,
-                          llvm::Type::getInt32Ty(context));
+    llvm::AllocaInst* alloca = CreateEntryAlloca(
+        current_function, node->name, llvm::Type::getInt32Ty(context));
     builder.CreateStore(llvm::ConstantInt::get(context, llvm::APInt(32, 0)),
                         alloca);
-    scopes.back()[node->name] = {alloca, node->type};
+    scope_ir_vars[current_scope][node->name] = {alloca, node->type};
   }
 }
 
@@ -244,8 +263,8 @@ void IrGenerator::Visit(AssignStatement* node) {
   if (current_this_ptr && !LookupVariable(node->name)) {
     llvm::StructType* st = class_types[current_class_name];
     int idx = GetFieldIndex(current_class_name, node->name);
-    llvm::Value* field_ptr = builder.CreateStructGEP(st, current_this_ptr, idx,
-                                                      "this." + node->name + ".ptr");
+    llvm::Value* field_ptr = builder.CreateStructGEP(
+        st, current_this_ptr, idx, "this." + node->name + ".ptr");
     node->expr->Accept(*this);
     builder.CreateStore(last_value, field_ptr);
     return;
@@ -275,7 +294,19 @@ void IrGenerator::Visit(PrintStatement* node) {
 }
 
 void IrGenerator::Visit(BlockStatement* node) {
-  PushScope();
+  Scope* block_scope = current_scope;
+
+  static int child_index = 0;
+  if (!current_scope->children.empty() && current_scope != root_scope) {
+    if (child_index < static_cast<int>(current_scope->children.size())) {
+      block_scope = current_scope->children[child_index].get();
+      child_index++;
+    }
+  }
+
+  Scope* prev_scope = current_scope;
+  EnterScope(block_scope);
+
   for (auto& stmt : node->statements) {
     if (!dynamic_cast<ClassDeclarationStatement*>(stmt.get()) &&
         !dynamic_cast<MethodDeclarationStatement*>(stmt.get())) {
@@ -283,7 +314,11 @@ void IrGenerator::Visit(BlockStatement* node) {
       if (builder.GetInsertBlock()->getTerminator()) break;
     }
   }
-  PopScope();
+
+  current_scope = prev_scope;
+  if (current_scope != root_scope) {
+    child_index--;
+  }
 }
 
 void IrGenerator::Visit(IfStatement* node) {
@@ -394,33 +429,57 @@ void IrGenerator::Visit(MethodDeclarationStatement* node) {
   builder.SetInsertPoint(entry);
   current_function = fn;
 
-  PushScope();
+  Scope* method_scope = nullptr;
+  for (auto& child : current_scope->children) {
+    if (!node->data.arguments.empty()) {
+      if (child->local_variables.contains(node->data.arguments[0].name)) {
+        method_scope = child.get();
+        break;
+      }
+    } else {
+      method_scope = child.get();
+      break;
+    }
+  }
+
+  if (!method_scope) {
+    method_scope = current_scope;
+  }
+
+  Scope* prev_scope = current_scope;
+  EnterScope(method_scope);
 
   arg_it = fn->args().begin();
 
   if (!current_class_name.empty()) {
     llvm::StructType* st = class_types[current_class_name];
-    llvm::AllocaInst* this_alloca = CreateEntryAlloca(fn, "this.addr", llvm::PointerType::get(st, 0));
+    llvm::AllocaInst* this_alloca =
+        CreateEntryAlloca(fn, "this.addr", llvm::PointerType::get(st, 0));
     builder.CreateStore(&(*arg_it), this_alloca);
-    current_this_ptr = builder.CreateLoad(llvm::PointerType::get(st, 0), this_alloca, "this");
+    current_this_ptr =
+        builder.CreateLoad(llvm::PointerType::get(st, 0), this_alloca, "this");
     ++arg_it;
   }
 
   for (size_t idx = 0; idx < node->data.arguments.size(); ++idx, ++arg_it) {
-    auto* alloca = CreateEntryAlloca(fn, node->data.arguments[idx].name,
-                                     GetLLVMType(node->data.arguments[idx].type));
+    auto* alloca =
+        CreateEntryAlloca(fn, node->data.arguments[idx].name,
+                          GetLLVMType(node->data.arguments[idx].type));
     builder.CreateStore(&(*arg_it), alloca);
-    scopes.back()[node->data.arguments[idx].name] = {alloca, node->data.arguments[idx].type};
+    scope_ir_vars[current_scope][node->data.arguments[idx].name] = {
+        alloca, node->data.arguments[idx].type};
   }
 
   node->data.body->Accept(*this);
 
   if (!builder.GetInsertBlock()->getTerminator()) {
-    if (node->data.return_type.kind == TypeKind::VOID) builder.CreateRetVoid();
-    else builder.CreateRet(llvm::ConstantInt::get(context, llvm::APInt(32, 0)));
+    if (node->data.return_type.kind == TypeKind::VOID)
+      builder.CreateRetVoid();
+    else
+      builder.CreateRet(llvm::ConstantInt::get(context, llvm::APInt(32, 0)));
   }
 
-  PopScope();
+  current_scope = prev_scope;
   current_this_ptr = nullptr;
   llvm::verifyFunction(*fn, &llvm::errs());
 }

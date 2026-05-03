@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "symtable.hpp"
 #include "types.hpp"
 #include "visitors.hpp"
 
@@ -19,7 +20,8 @@ struct IrVarInfo {
 
 class IrGenerator : public Visitor {
  public:
-  explicit IrGenerator(const std::string& module_name);
+  IrGenerator(const std::string& module_name, Scope* root_scope,
+              GlobalSymbolTable& global_sym_table);
 
   void Visit(NumberExpression* node) override;
   void Visit(VarExpression* node) override;
@@ -54,13 +56,19 @@ class IrGenerator : public Visitor {
   std::string current_class_name;
   llvm::Value* current_this_ptr = nullptr;
 
-  std::vector<std::unordered_map<std::string, IrVarInfo>> scopes;
+  Scope* root_scope;
+  Scope* current_scope;
+  GlobalSymbolTable& global_sym_table;
+
+  std::unordered_map<Scope*, std::unordered_map<std::string, IrVarInfo>>
+      scope_ir_vars;
+
   std::unordered_map<std::string, llvm::StructType*> class_types;
   std::unordered_map<std::string, std::vector<std::string>> class_field_order;
 
   void GenerateClassesAndMethods(BlockStatement* program);
-  void PushScope();
-  void PopScope();
+  void EnterScope(Scope* scope);
+  void ExitScope();
   IrVarInfo* LookupVariable(const std::string& name);
   llvm::AllocaInst* CreateEntryAlloca(llvm::Function* fn,
                                       const std::string& name,

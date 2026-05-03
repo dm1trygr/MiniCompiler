@@ -91,4 +91,3 @@ class Interpreter : public Visitor {
   std::unordered_map<std::string, int> variables;
   int result_value = 0;
 };
-

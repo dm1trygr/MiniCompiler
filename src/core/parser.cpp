@@ -57,7 +57,8 @@ std::unique_ptr<Statement> Parser::ParseDeclareStatement() {
   return std::make_unique<DeclareStatement>(name, type);
 }
 
-std::unique_ptr<Statement> Parser::ParseMemberAccess(const std::string& object_name) {
+std::unique_ptr<Statement> Parser::ParseMemberAccess(
+    const std::string& object_name) {
   Consume();
   std::string member = Consume().value;
 
@@ -74,8 +75,8 @@ std::unique_ptr<Statement> Parser::ParseMethodCallStatement(
   auto args = ParseArgumentList();
   Expect(TokenType::RPAREN, "Expected ')'");
   Expect(TokenType::SEMICOLON, "Expected ';'");
-  auto call = std::make_unique<MethodCallExpression>(
-      object_name, method_name, std::move(args));
+  auto call = std::make_unique<MethodCallExpression>(object_name, method_name,
+                                                     std::move(args));
   return std::make_unique<ExpressionStatement>(std::move(call));
 }
 

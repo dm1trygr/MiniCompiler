@@ -33,12 +33,14 @@ void PrintVisitor::Visit(BinaryExpression* node) {
 
 void PrintVisitor::Visit(FieldAccessExpression* node) {
   PrintIndent();
-  out << "FieldAccess: " << node->object_name << "." << node->field_name << "\n";
+  out << "FieldAccess: " << node->object_name << "." << node->field_name
+      << "\n";
 }
 
 void PrintVisitor::Visit(MethodCallExpression* node) {
   PrintIndent();
-  out << "MethodCall: " << node->object_name << "." << node->method_name << "()\n";
+  out << "MethodCall: " << node->object_name << "." << node->method_name
+      << "()\n";
   depth++;
   for (auto& arg : node->arguments) {
     arg->Accept(*this);
@@ -71,7 +73,8 @@ void PrintVisitor::Visit(AssignStatement* node) {
 
 void PrintVisitor::Visit(FieldAssignStatement* node) {
   PrintIndent();
-  out << "FieldAssign: " << node->object_name << "." << node->field_name << " =\n";
+  out << "FieldAssign: " << node->object_name << "." << node->field_name
+      << " =\n";
   depth++;
   node->expr->Accept(*this);
   depth--;
@@ -301,4 +304,3 @@ void Interpreter::Visit(ClassDeclarationStatement*) {}
 void Interpreter::Visit(MethodDeclarationStatement*) {}
 
 void Interpreter::Visit(ReturnStatement*) {}
-

@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     ast->Accept(analyzer);
     std::cout << "Semantic analysis passed\n";
 
-    IrGenerator generator("main_module", analyzer.GetRootScope(),
+    IrGenerator generator(analyzer.GetRootScope(),
                           analyzer.GetGlobalSymTable());
     generator.GenerateMain(ast.get());
     generator.SaveToFile("output.ll");

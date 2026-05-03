@@ -8,9 +8,8 @@
 
 #include "operators.hpp"
 
-IrGenerator::IrGenerator(const std::string& module_name, Scope* root_scope,
-                         GlobalSymbolTable& global_sym_table)
-    : module(std::make_unique<llvm::Module>(module_name, context)),
+IrGenerator::IrGenerator(Scope* root_scope, GlobalSymbolTable& global_sym_table)
+    : module(std::make_unique<llvm::Module>("main_module", context)),
       builder(context),
       root_scope(root_scope),
       current_scope(root_scope),

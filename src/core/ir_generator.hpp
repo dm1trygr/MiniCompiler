@@ -20,8 +20,7 @@ struct IrVarInfo {
 
 class IrGenerator : public Visitor {
  public:
-  IrGenerator(const std::string& module_name, Scope* root_scope,
-              GlobalSymbolTable& global_sym_table);
+  IrGenerator(Scope* root_scope, GlobalSymbolTable& global_sym_table);
 
   void Visit(NumberExpression* node) override;
   void Visit(VarExpression* node) override;
